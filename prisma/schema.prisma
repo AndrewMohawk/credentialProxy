@@ -1,0 +1,150 @@
+// Prisma schema for CredentialProxy
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for administrators
+model User {
+  id            String         @id @default(uuid())
+  username      String         @unique
+  email         String         @unique
+  passwordHash  String?
+  // For passkey authentication
+  challenge     String?
+  credentials   Credential[]
+  passkeys      Passkey[]
+  auditEvents   AuditEvent[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+// Passkey authentication credentials
+model Passkey {
+  id                  String    @id
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  publicKey           Bytes
+  counter             BigInt
+  credentialBackedUp  Boolean   @default(false)
+  transports          String[]
+  createdAt           DateTime  @default(now())
+}
+
+// Credential types
+enum CredentialType {
+  OAUTH
+  API_KEY
+  ETHEREUM_KEY
+  OTHER
+}
+
+// Credential model
+model Credential {
+  id              String         @id @default(uuid())
+  name            String
+  type            CredentialType
+  data            Json           // Encrypted credential data
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  policies        Policy[]
+  applications    Application[]
+  auditEvents     AuditEvent[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+// Policy types
+enum PolicyType {
+  ALLOW_LIST
+  DENY_LIST
+  TIME_BASED
+  COUNT_BASED
+  MANUAL_APPROVAL
+  PATTERN_MATCH
+}
+
+// Policy model
+model Policy {
+  id               String       @id @default(uuid())
+  name             String
+  type             PolicyType
+  configuration    Json         // Policy-specific configuration
+  credentialId     String
+  credential       Credential   @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  applicationId    String?
+  application      Application? @relation(fields: [applicationId], references: [id])
+  // For COUNT_BASED policies
+  currentCount     Int?         @default(0)
+  maxCount         Int?
+  // For TIME_BASED policies
+  startTime        DateTime?
+  endTime          DateTime?
+  // For PATTERN_MATCH policies
+  pattern          String?
+  // Common fields
+  auditEvents      AuditEvent[]
+  isEnabled        Boolean      @default(true)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+}
+
+// Application model for third-party apps
+model Application {
+  id               String       @id @default(uuid())
+  name             String
+  publicKey        String       // For verifying request signatures
+  credentials      Credential[]
+  policies         Policy[]
+  auditEvents      AuditEvent[]
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+}
+
+// Request status for audit logging
+enum RequestStatus {
+  PENDING
+  APPROVED
+  DENIED
+  COMPLETED
+  ERROR
+}
+
+// Audit log for all actions
+model AuditEvent {
+  id               String        @id @default(uuid())
+  type             String        // Type of event (e.g., "credential_access", "policy_update")
+  details          Json          // Event-specific details
+  userId           String?
+  user             User?         @relation(fields: [userId], references: [id])
+  credentialId     String?
+  credential       Credential?   @relation(fields: [credentialId], references: [id])
+  applicationId    String?
+  application      Application?  @relation(fields: [applicationId], references: [id])
+  policyId         String?
+  policy           Policy?       @relation(fields: [policyId], references: [id])
+  requestId        String?       // For tracking request flow
+  requestStatus    RequestStatus?
+  // For storing pending requests that need approval
+  requestData      Json?
+  responseData     Json?
+  createdAt        DateTime      @default(now())
+}
+
+// PendingRequest model for requests requiring approval
+model PendingRequest {
+  id               String        @id @default(uuid())
+  requestData      Json          // The original request data
+  policyId         String
+  applicationId    String
+  credentialId     String
+  status           RequestStatus @default(PENDING)
+  expiresAt        DateTime      // When the request times out
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+} 
