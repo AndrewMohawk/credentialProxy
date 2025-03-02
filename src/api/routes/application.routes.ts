@@ -107,10 +107,31 @@ router.post('/register-self', async (req, res) => {
     // Get client IP
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
     
-    // Determine initial status based on configuration
-    const status = config.applications.autoRegistrationDefaultStatus === 'active' 
+    // Check if the public key is pre-approved
+    let status = config.applications.autoRegistrationDefaultStatus === 'active' 
       ? ApplicationStatus.ACTIVE 
       : ApplicationStatus.PENDING;
+    
+    let preApprovedKey = null;
+    
+    if (config.applications.enablePreApprovedKeys) {
+      // Check for matching pre-approved key that's not expired
+      preApprovedKey = await prisma.preApprovedPublicKey.findFirst({
+        where: {
+          publicKey,
+          used: false,
+          OR: [
+            { expiresAt: null },
+            { expiresAt: { gt: new Date() } }
+          ]
+        }
+      });
+      
+      if (preApprovedKey) {
+        // Public key is pre-approved, set status to ACTIVE
+        status = ApplicationStatus.ACTIVE;
+      }
+    }
     
     // Create the application with all required fields
     // @ts-ignore - TypeScript doesn't recognize that status and secret fields are in the model
@@ -127,20 +148,33 @@ router.post('/register-self', async (req, res) => {
       } as any
     });
     
-    // Log the event
+    // If there was a pre-approved key and it's configured for one-time use, mark it as used
+    if (preApprovedKey && config.applications.preApprovedKeysOneTimeUse) {
+      await prisma.preApprovedPublicKey.update({
+        where: { id: preApprovedKey.id },
+        data: {
+          used: true,
+          usedByApplication: newApplication.id
+        }
+      });
+    }
+    
+    // Log the event with additional details if pre-approved
     await prisma.auditEvent.create({
       data: {
         type: 'APPLICATION_SELF_REGISTRATION',
         details: {
           name: newApplication.name,
           ip,
-          status
+          status,
+          preApproved: !!preApprovedKey,
+          preApprovedKeyId: preApprovedKey?.id
         },
         applicationId: newApplication.id
       }
     });
     
-    logger.info(`New application self-registered: ${name} (${newApplication.id})`);
+    logger.info(`New application self-registered: ${name} (${newApplication.id})${preApprovedKey ? ' [Pre-approved]' : ''}`);
     
     // Return the application with the secret (this is the only time the secret will be provided)
     // @ts-ignore - TypeScript doesn't recognize the status and secret fields

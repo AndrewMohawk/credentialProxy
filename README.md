@@ -80,6 +80,51 @@ AUTO_REGISTRATION_DEFAULT_STATUS=pending  # or 'active' to skip approval
 
 4. If approval is required, an administrator must approve the application through the admin interface or API before it can be used.
 
+### Pre-Approved Public Keys
+
+Administrators can pre-approve specific public keys, allowing applications that register with these keys to be automatically approved, even if the default configuration requires manual approval.
+
+#### Managing Pre-Approved Keys
+
+Administrators can manage pre-approved keys through the following endpoints:
+
+- `GET /api/v1/pre-approved-keys` - List all pre-approved keys
+- `GET /api/v1/pre-approved-keys/:id` - Get details of a specific pre-approved key
+- `POST /api/v1/pre-approved-keys` - Add a new pre-approved key
+- `DELETE /api/v1/pre-approved-keys/:id` - Delete a pre-approved key
+
+Example of adding a new pre-approved key:
+
+```javascript
+axios.post('https://credential-proxy.example.com/api/v1/pre-approved-keys', {
+  publicKey: '-----BEGIN PUBLIC KEY-----\n...',
+  description: 'Pre-approved key for Partner XYZ',
+  // Optional: expiresAt: '2024-12-31'
+}, {
+  headers: {
+    'Authorization': 'Bearer YOUR_ADMIN_JWT_TOKEN'
+  }
+})
+.then(response => {
+  console.log('Pre-approved key created:', response.data);
+})
+.catch(error => {
+  console.error('Error:', error.response?.data || error.message);
+});
+```
+
+#### Configuration
+
+The pre-approved keys feature can be configured with these environment variables:
+
+```
+ENABLE_PRE_APPROVED_KEYS=true          # Enable/disable pre-approved keys feature (default: true)
+PRE_APPROVED_KEYS_ONE_TIME_USE=true    # Whether keys can only be used once (default: true)
+PRE_APPROVED_KEYS_EXPIRATION_DAYS=30   # Default expiration in days (default: 30, null for no expiration)
+```
+
+When an application self-registers with a pre-approved public key, it is automatically set to ACTIVE status and can begin using the system immediately.
+
 ### Credential Revocation
 
 Applications can revoke their access to specific credentials if they no longer need them or suspect a security issue:

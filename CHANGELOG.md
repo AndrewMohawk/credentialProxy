@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Credential revocation endpoint for applications
 - Application self-revocation endpoint for compromised applications
 - Admin endpoint to approve pending applications
+- Pre-approved public keys feature for automatic application approval
 - Centralized configuration module for managing environment variables and settings
 - Service Container pattern for dependency injection and better testability
 - Enhanced error handling with custom error types and consistent error responses

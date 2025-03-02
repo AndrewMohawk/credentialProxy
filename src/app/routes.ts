@@ -9,6 +9,7 @@ import { policyRoutes } from '../api/routes/policy.routes';
 import { applicationRoutes } from '../api/routes/application.routes';
 import { proxyRoutes } from '../api/routes/proxy.routes';
 import { adminRoutes } from '../api/routes/admin.routes';
+import { preApprovedKeysRoutes } from '../api/routes/pre-approved-keys.routes';
 
 /**
  * Configure all routes for the Express application
@@ -33,6 +34,7 @@ export const configureRoutes = (app: Express): void => {
   app.use(`${apiPrefix}/policies`, policyRoutes);
   app.use(`${apiPrefix}/applications`, applicationRoutes);
   app.use(`${apiPrefix}/admin`, adminRoutes);
+  app.use(`${apiPrefix}/pre-approved-keys`, preApprovedKeysRoutes);
   
   // Health check endpoint
   app.get('/health', (req, res) => {

@@ -76,5 +76,13 @@ export const config = {
     allowAutoRegistration: process.env.ALLOW_AUTO_REGISTRATION === 'true' || false,
     // Default status for auto-registered applications: pending, active, inactive
     autoRegistrationDefaultStatus: process.env.AUTO_REGISTRATION_DEFAULT_STATUS || 'pending',
+    // Enable auto-approval for applications with pre-approved public keys
+    enablePreApprovedKeys: process.env.ENABLE_PRE_APPROVED_KEYS === 'true' || true,
+    // Whether pre-approved keys should be one-time use only
+    preApprovedKeysOneTimeUse: process.env.PRE_APPROVED_KEYS_ONE_TIME_USE === 'true' || true,
+    // Default expiration time for pre-approved keys in days (null means no expiration)
+    preApprovedKeysExpirationDays: process.env.PRE_APPROVED_KEYS_EXPIRATION_DAYS 
+      ? parseInt(process.env.PRE_APPROVED_KEYS_EXPIRATION_DAYS, 10) 
+      : 30,
   },
 }; 

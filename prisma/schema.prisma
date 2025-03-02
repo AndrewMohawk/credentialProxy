@@ -20,6 +20,7 @@ model User {
   credentials   Credential[]
   passkeys      Passkey[]
   auditEvents   AuditEvent[]
+  preApprovedKeys PreApprovedPublicKey[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 }
@@ -112,6 +113,19 @@ model Application {
   revokedReason    String?         // Reason for revocation
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
+}
+
+// Pre-approved public keys for automatic application approval
+model PreApprovedPublicKey {
+  id               String    @id @default(uuid())
+  publicKey        String    @unique    // The public key that will be auto-approved
+  description      String?   // Description of what application this key is for
+  createdById      String    // Admin who created this pre-approval
+  createdBy        User      @relation(fields: [createdById], references: [id])
+  used             Boolean   @default(false)  // Whether this key has been used
+  usedByApplication String?  // ID of the application that used this key
+  createdAt        DateTime  @default(now())
+  expiresAt        DateTime? // Optional expiration date for the pre-approval
 }
 
 // Status of an application
