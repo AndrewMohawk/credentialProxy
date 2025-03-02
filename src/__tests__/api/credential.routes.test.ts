@@ -1,6 +1,13 @@
 // Mock dependencies
 jest.mock('../../middleware/auth', () => ({
-  authMiddleware: jest.fn((req, res, next) => next())
+  authenticateJWT: jest.fn((req, res, next) => {
+    req.user = {
+      id: 'test-user-id',
+      username: 'testuser',
+      email: 'test@example.com'
+    };
+    next();
+  })
 }));
 
 jest.mock('../../db/prisma', () => ({
@@ -29,7 +36,7 @@ import request from 'supertest';
 import express from 'express';
 import { credentialRoutes } from '../../api/routes/credential.routes';
 import { prisma } from '../../db/prisma';
-import { authMiddleware } from '../../middleware/auth';
+import { authenticateJWT } from '../../middleware/auth';
 
 describe('Credential Routes', () => {
   let app: express.Application;
@@ -59,22 +66,41 @@ describe('Credential Routes', () => {
       expect(response.body.data).toEqual(mockCredentials);
       expect(prisma.credential.findMany).toHaveBeenCalledWith({
         where: { 
+          userId: 'test-user-id',
           applications: {
             some: {
               id: 'app-123'
             }
           }
+        },
+        orderBy: {
+          createdAt: 'desc'
         }
       });
     });
 
-    test('should require applicationId parameter', async () => {
+    test('should get all credentials for a user when no applicationId is provided', async () => {
+      const mockCredentials = [
+        { id: 'cred-1', name: 'Credential 1', type: 'API_KEY' },
+        { id: 'cred-2', name: 'Credential 2', type: 'OAUTH' }
+      ];
+
+      (prisma.credential.findMany as jest.Mock).mockResolvedValue(mockCredentials);
+
       const response = await request(app)
         .get('/credentials')
-        .expect(400);
+        .expect(200);
       
-      expect(response.body.success).toBe(false);
-      expect(response.body.error).toBeDefined();
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).toEqual(mockCredentials);
+      expect(prisma.credential.findMany).toHaveBeenCalledWith({
+        where: { 
+          userId: 'test-user-id'
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
     });
   });
 

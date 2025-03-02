@@ -1,11 +1,18 @@
+// Create mockLogger before using it in mocks
+const mockLogger = {
+  info: jest.fn(),
+  error: jest.fn(),
+  warn: jest.fn(),
+  debug: jest.fn()
+};
+
 import { policyRoutes } from '../../api/routes/policy.routes';
 import express from 'express';
 import request from 'supertest';
-import { mockLogger } from '../testUtils';
 
-// Mock the dependencies
+// Mock dependencies
 jest.mock('../../middleware/auth', () => ({
-  authMiddleware: (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  authenticateJWT: jest.fn((req, res, next) => {
     // Mock authenticated user
     req.user = {
       id: 'user_test123',
@@ -13,7 +20,7 @@ jest.mock('../../middleware/auth', () => ({
       email: 'testuser@example.com'
     };
     next();
-  },
+  })
 }));
 
 jest.mock('../../utils/logger', () => ({
@@ -27,9 +34,58 @@ jest.mock('../../db/prisma', () => ({
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
-      delete: jest.fn(),
+      delete: jest.fn()
+    },
+    credential: {
+      findUnique: jest.fn()
     }
   }
+}));
+
+jest.mock('../../api/controllers/policy.controller', () => ({
+  getAllPolicies: jest.fn((req, res) => {
+    res.status(200).json({
+      success: true,
+      message: 'Get all policies endpoint',
+      data: []
+    });
+  }),
+  getPolicyById: jest.fn((req, res) => {
+    res.status(200).json({
+      success: true,
+      message: `Get policy with ID: ${req.params.id}`,
+      data: { id: req.params.id }
+    });
+  }),
+  createPolicy: jest.fn((req, res) => {
+    res.status(201).json({
+      success: true,
+      message: 'Create policy endpoint',
+      data: { id: 'new-policy-id', ...req.body }
+    });
+  }),
+  updatePolicy: jest.fn((req, res) => {
+    res.status(200).json({
+      success: true,
+      message: `Update policy with ID: ${req.params.id}`,
+      data: { id: req.params.id, ...req.body }
+    });
+  }),
+  deletePolicy: jest.fn((req, res) => {
+    res.status(200).json({
+      success: true,
+      message: `Delete policy with ID: ${req.params.id}`
+    });
+  })
+}));
+
+jest.mock('../../api/controllers/policyTemplate.controller', () => ({
+  getAllTemplates: jest.fn(),
+  getTemplatesForType: jest.fn(),
+  getTemplate: jest.fn(),
+  getTemplatesForCredential: jest.fn(),
+  applyTemplate: jest.fn(),
+  applyRecommendedTemplates: jest.fn()
 }));
 
 describe('Policy Routes', () => {

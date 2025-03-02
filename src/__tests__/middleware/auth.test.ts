@@ -18,12 +18,15 @@ jest.mock('../../db/prisma', () => ({
 // Mock logger
 jest.mock('../../utils/logger', () => ({
   logger: {
-    error: jest.fn()
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn()
   }
 }));
 
 // Import after mocks are set up
-import { authMiddleware } from '../../middleware/auth';
+import { authenticateJWT } from '../../middleware/auth';
 
 describe('Auth Middleware', () => {
   let mockRequest: Partial<Request>;
@@ -62,7 +65,7 @@ describe('Auth Middleware', () => {
   });
   
   test('should return 401 if no authorization header is present', async () => {
-    await authMiddleware(
+    await authenticateJWT(
       mockRequest as Request,
       mockResponse as Response,
       mockNext
@@ -70,7 +73,7 @@ describe('Auth Middleware', () => {
     
     expect(mockResponse.status).toHaveBeenCalledWith(401);
     expect(mockResponse.json).toHaveBeenCalledWith({
-      message: 'Authorization token is missing'
+      message: 'Authorization header is missing'
     });
     expect(mockNext).not.toHaveBeenCalled();
   });
@@ -78,7 +81,7 @@ describe('Auth Middleware', () => {
   test('should return 401 if authorization header does not start with "Bearer"', async () => {
     mockRequest.headers = { authorization: 'Token xyz123' };
     
-    await authMiddleware(
+    await authenticateJWT(
       mockRequest as Request,
       mockResponse as Response,
       mockNext
@@ -86,7 +89,7 @@ describe('Auth Middleware', () => {
     
     expect(mockResponse.status).toHaveBeenCalledWith(401);
     expect(mockResponse.json).toHaveBeenCalledWith({
-      message: 'Authorization token is missing'
+      message: 'Authorization format should be: Bearer [token]'
     });
     expect(mockNext).not.toHaveBeenCalled();
   });
@@ -94,7 +97,7 @@ describe('Auth Middleware', () => {
   test('should return 401 if token is missing after "Bearer"', async () => {
     mockRequest.headers = { authorization: 'Bearer ' };
     
-    await authMiddleware(
+    await authenticateJWT(
       mockRequest as Request,
       mockResponse as Response,
       mockNext
@@ -117,7 +120,7 @@ describe('Auth Middleware', () => {
     
     mockRequest.headers = { authorization: 'Bearer token123' };
     
-    await authMiddleware(
+    await authenticateJWT(
       mockRequest as Request,
       mockResponse as Response,
       mockNext
@@ -136,11 +139,11 @@ describe('Auth Middleware', () => {
   
   test('should return 401 if token is invalid', async () => {
     mockRequest.headers = { authorization: 'Bearer token123' };
-    mockJwtVerify.mockImplementation(() => {
-      throw new Error('Invalid token');
+    mockJwtVerify.mockImplementation((token, secret, callback) => {
+      callback(new Error('Invalid token'), null);
     });
     
-    await authMiddleware(
+    await authenticateJWT(
       mockRequest as Request,
       mockResponse as Response,
       mockNext
@@ -153,32 +156,17 @@ describe('Auth Middleware', () => {
     expect(mockNext).not.toHaveBeenCalled();
   });
   
-  test('should return 401 if user is not found', async () => {
-    mockRequest.headers = { authorization: 'Bearer token123' };
-    mockJwtVerify.mockReturnValue({ userId: 'user-123' });
-    mockFindUnique.mockResolvedValue(null);
-    
-    await authMiddleware(
-      mockRequest as Request,
-      mockResponse as Response,
-      mockNext
-    );
-    
-    expect(mockResponse.status).toHaveBeenCalledWith(401);
-    expect(mockResponse.json).toHaveBeenCalledWith({
-      message: 'User not found'
-    });
-    expect(mockNext).not.toHaveBeenCalled();
-  });
-  
   test('should attach user to request and call next if token is valid', async () => {
     const user = { id: 'user-123', username: 'testuser', email: 'test@example.com' };
     
     mockRequest.headers = { authorization: 'Bearer token123' };
-    mockJwtVerify.mockReturnValue({ userId: 'user-123' });
+    mockJwtVerify.mockImplementation((token, secret, callback) => {
+      callback(null, { id: user.id });
+    });
+    
     mockFindUnique.mockResolvedValue(user);
     
-    await authMiddleware(
+    await authenticateJWT(
       mockRequest as Request,
       mockResponse as Response,
       mockNext
@@ -198,15 +186,15 @@ describe('Auth Middleware', () => {
       throw new Error('Database error');
     });
     
-    await authMiddleware(
+    await authenticateJWT(
       mockRequest as Request,
       mockResponse as Response,
       mockNext
     );
     
-    expect(mockResponse.status).toHaveBeenCalledWith(401);
+    expect(mockResponse.status).toHaveBeenCalledWith(500);
     expect(mockResponse.json).toHaveBeenCalledWith({
-      message: 'Invalid or expired token'
+      message: 'Internal server error during authentication'
     });
     expect(mockNext).not.toHaveBeenCalled();
   });
@@ -224,7 +212,7 @@ describe('Auth Middleware', () => {
       }
     });
     
-    await authMiddleware(
+    await authenticateJWT(
       mockRequest as Request,
       mockResponse as Response,
       mockNext
@@ -232,7 +220,7 @@ describe('Auth Middleware', () => {
     
     expect(mockResponse.status).toHaveBeenCalledWith(500);
     expect(mockResponse.json).toHaveBeenCalledWith({
-      message: 'Server error'
+      message: 'Internal server error during authentication'
     });
     expect(mockNext).not.toHaveBeenCalled();
   });

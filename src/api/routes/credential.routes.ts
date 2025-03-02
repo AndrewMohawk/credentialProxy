@@ -1,32 +1,44 @@
 import express from 'express';
-import { authMiddleware } from '../../middleware/auth';
+import { authenticateJWT } from '../../middleware/auth';
 import { prisma } from '../../db/prisma';
 import { logger } from '../../utils/logger';
 
 const router = express.Router();
 
-// Apply auth middleware to all credential routes
-router.use(authMiddleware);
+// Apply authentication middleware to all credential routes
+router.use(authenticateJWT);
 
-// Get all credentials for an application
+// Get all credentials for a user, optionally filtered by application
 router.get('/', async (req, res) => {
   try {
     const { applicationId } = req.query;
+    const userId = req.user?.id;
     
-    if (!applicationId) {
-      return res.status(400).json({
+    if (!userId) {
+      return res.status(401).json({
         success: false,
-        error: 'Application ID is required'
+        error: 'Unauthorized - User ID not found'
       });
     }
     
-    const credentials = await prisma.credential.findMany({
-      where: { 
-        applications: {
-          some: {
-            id: applicationId as string
-          }
+    // Build query based on whether application ID is provided
+    const whereClause: any = {
+      userId
+    };
+    
+    // If application ID is provided, filter by that application
+    if (applicationId) {
+      whereClause.applications = {
+        some: {
+          id: applicationId as string
         }
+      };
+    }
+    
+    const credentials = await prisma.credential.findMany({
+      where: whereClause,
+      orderBy: {
+        createdAt: 'desc'
       }
     });
     

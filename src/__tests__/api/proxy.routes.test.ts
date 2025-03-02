@@ -22,7 +22,7 @@ jest.mock('crypto', () => ({
 // Mock auth middleware
 import { Request, Response, NextFunction } from 'express';
 jest.mock('../../middleware/auth', () => ({
-  authMiddleware: (req: Request, res: Response, next: NextFunction) => next(),
+  authenticateJWT: (req: Request, res: Response, next: NextFunction) => next(),
 }));
 
 // Mock proxy validator to allow test requests to pass

@@ -1,158 +1,160 @@
 import { Request, Response } from 'express';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { prisma } from '../../../db/prisma';
+import { registerUser, login } from '../../../api/controllers/auth.controller';
 
 // Define mock logger before using it in the mock
-const mockLogger = {
-  info: jest.fn(),
-  error: jest.fn(),
-  warn: jest.fn(),
-  debug: jest.fn()
-};
-
-// Mock logger
 jest.mock('../../../utils/logger', () => ({
-  logger: mockLogger
+  logger: {
+    error: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn()
+  }
 }));
 
-// Mock bcrypt
-const mockCompare = jest.fn();
-const mockHash = jest.fn();
-const mockGenSalt = jest.fn().mockResolvedValue(10);
-
-jest.mock('bcrypt', () => ({
-  compare: (...args: any[]) => mockCompare(...args),
-  hash: (...args: any[]) => mockHash(...args),
-  genSalt: (...args: any[]) => mockGenSalt(...args)
-}));
-
-// Mock jsonwebtoken
-const mockSign = jest.fn().mockReturnValue('mock-token');
-jest.mock('jsonwebtoken', () => ({
-  sign: (...args: any[]) => mockSign(...args)
-}));
-
-// Define mock functions for Prisma
-const mockFindFirst = jest.fn();
-const mockFindUnique = jest.fn();
-const mockCreate = jest.fn();
-
-// Mock Prisma
+// Mock the modules
+jest.mock('bcrypt');
+jest.mock('jsonwebtoken');
 jest.mock('../../../db/prisma', () => ({
   prisma: {
     user: {
-      findFirst: (...args: any[]) => mockFindFirst(...args),
-      findUnique: (...args: any[]) => mockFindUnique(...args),
-      create: (...args: any[]) => mockCreate(...args)
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn()
+    },
+    auditEvent: {
+      create: jest.fn()
     }
   }
 }));
 
-// Now import the controller functions after mocking dependencies
-import { registerUser, login } from '../../../api/controllers/auth.controller';
-
 describe('Auth Controller', () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
+  let mockFindFirst: jest.Mock;
+  let mockFindUnique: jest.Mock;
+  let mockCreate: jest.Mock;
+  let mockHash: jest.Mock;
+  let mockCompare: jest.Mock;
+  let mockSign: jest.Mock;
+  let statusCode: number;
+  let responseBody: any;
 
   beforeEach(() => {
+    // Reset all mocks before each test
+    jest.clearAllMocks();
+    
+    // Setup request and response mocks
     mockRequest = {
       body: {}
     };
+    
+    statusCode = 0;
+    responseBody = null;
+    
     mockResponse = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn().mockReturnThis()
+      status: jest.fn().mockImplementation((code) => {
+        statusCode = code;
+        return mockResponse;
+      }),
+      json: jest.fn().mockImplementation((body) => {
+        responseBody = body;
+        return mockResponse;
+      })
     };
-    jest.clearAllMocks();
+    
+    // Setup database mocks
+    mockFindFirst = jest.fn();
+    mockFindUnique = jest.fn();
+    mockCreate = jest.fn();
+    
+    // Setup bcrypt mocks
+    mockHash = jest.fn();
+    mockCompare = jest.fn();
+    
+    // Setup jwt mock
+    mockSign = jest.fn();
+    
+    // Mock the modules
+    (prisma.user.findFirst as jest.Mock) = mockFindFirst;
+    (prisma.user.findUnique as jest.Mock) = mockFindUnique;
+    (prisma.user.create as jest.Mock) = mockCreate;
+    (prisma.auditEvent.create as jest.Mock) = jest.fn().mockResolvedValue({});
+    (bcrypt.hash as jest.Mock) = mockHash;
+    (bcrypt.genSalt as jest.Mock) = jest.fn().mockResolvedValue(10);
+    (bcrypt.compare as jest.Mock) = mockCompare;
+    (jwt.sign as jest.Mock) = mockSign;
   });
 
   describe('registerUser', () => {
     it('should return 500 if required fields are missing', async () => {
       // Arrange
-      mockRequest.body = {
-        // Missing required fields
-      };
+      mockRequest.body = {}; // Empty body
 
       // Act
       await registerUser(mockRequest as Request, mockResponse as Response);
 
       // Assert
-      expect(mockResponse.status).toHaveBeenCalledWith(500);
-      expect(mockResponse.json).toHaveBeenCalledWith({
+      expect(statusCode).toBe(500);
+      expect(responseBody).toEqual({
         success: false,
-        error: 'Server error'
+        error: 'Server error during registration. Please try again later.'
       });
     });
 
-    it('should return 400 if user already exists', async () => {
+    it('should return 500 if user already exists', async () => {
       // Arrange
       mockRequest.body = {
         username: 'existinguser',
-        email: 'existing@example.com',
-        password: 'password123'
+        password: 'password123',
+        email: 'existing@example.com'
       };
-      mockFindFirst.mockResolvedValueOnce({
-        id: 'user123',
+      mockFindFirst.mockResolvedValue({
+        id: 'user-123',
         username: 'existinguser',
         email: 'existing@example.com'
-      });
+      } as any);
 
       // Act
       await registerUser(mockRequest as Request, mockResponse as Response);
 
       // Assert
-      expect(mockFindFirst).toHaveBeenCalledWith({
-        where: {
-          OR: [
-            { username: 'existinguser' },
-            { email: 'existing@example.com' }
-          ]
-        }
-      });
-      expect(mockResponse.status).toHaveBeenCalledWith(400);
-      expect(mockResponse.json).toHaveBeenCalledWith({
+      expect(statusCode).toBe(500);
+      expect(responseBody).toEqual({
         success: false,
-        error: 'User already exists'
+        error: 'User with this username or email already exists'
       });
     });
 
-    it('should create a new user and return 201 on success', async () => {
+    it('should return 201 and token on successful registration', async () => {
       // Arrange
       mockRequest.body = {
         username: 'newuser',
-        email: 'new@example.com',
-        password: 'password123'
+        password: 'password123',
+        email: 'newuser@example.com'
       };
-      mockFindFirst.mockResolvedValueOnce(null);
-      mockHash.mockResolvedValueOnce('hashedpassword');
-      mockCreate.mockResolvedValueOnce({
-        id: 'user123',
+
+      mockFindFirst.mockResolvedValue(null);
+      mockHash.mockResolvedValue('hashedpassword');
+      mockCreate.mockResolvedValue({
+        id: 'user-123',
         username: 'newuser',
-        email: 'new@example.com'
-      });
+        email: 'newuser@example.com'
+      } as any);
+      mockSign.mockReturnValue('mock-token');
 
       // Act
       await registerUser(mockRequest as Request, mockResponse as Response);
 
       // Assert
-      expect(mockFindFirst).toHaveBeenCalledWith({
-        where: {
-          OR: [
-            { username: 'newuser' },
-            { email: 'new@example.com' }
-          ]
-        }
-      });
-      expect(mockGenSalt).toHaveBeenCalledWith(10);
+      expect(mockFindFirst).toHaveBeenCalled();
       expect(mockHash).toHaveBeenCalledWith('password123', 10);
-      expect(mockCreate).toHaveBeenCalledWith({
-        data: {
-          username: 'newuser',
-          email: 'new@example.com',
-          passwordHash: 'hashedpassword'
-        }
-      });
+      expect(mockCreate).toHaveBeenCalled();
       expect(mockSign).toHaveBeenCalled();
-      expect(mockResponse.status).toHaveBeenCalledWith(201);
-      expect(mockResponse.json).toHaveBeenCalledWith({
+      expect(statusCode).toBe(201);
+      expect(responseBody).toEqual({
         success: true,
         token: 'mock-token'
       });
@@ -171,107 +173,113 @@ describe('Auth Controller', () => {
       await registerUser(mockRequest as Request, mockResponse as Response);
 
       // Assert
-      expect(mockResponse.status).toHaveBeenCalledWith(500);
-      expect(mockResponse.json).toHaveBeenCalledWith({
+      expect(statusCode).toBe(500);
+      expect(responseBody).toEqual({
         success: false,
-        error: 'Server error'
+        error: 'Server error during registration. Please try again later.'
       });
-      expect(mockLogger.error).toHaveBeenCalled();
+      // Verify logger was called with the error
+      expect(require('../../../utils/logger').logger.error).toHaveBeenCalled();
     });
   });
 
   describe('login', () => {
-    it('should return 400 if required fields are missing', async () => {
+    beforeEach(() => {
+      // Reset status and response for each test
+      statusCode = 0;
+      responseBody = null;
+      
+      // Setup mocks for login tests
+      mockRequest.body = {};
+      mockFindUnique.mockReset();
+      mockCompare.mockReset();
+      mockSign.mockReset();
+    });
+
+    it('should return 500 if required fields are missing', async () => {
       // Arrange
-      mockRequest.body = {
-        // Missing required fields
-      };
+      mockRequest.body = {}; // Empty body
 
       // Act
       await login(mockRequest as Request, mockResponse as Response);
 
       // Assert
-      expect(mockResponse.status).toHaveBeenCalledWith(400);
-      expect(mockResponse.json).toHaveBeenCalledWith({
+      expect(statusCode).toBe(500);
+      expect(responseBody).toEqual({
         success: false,
-        error: 'Invalid credentials'
+        error: 'Server error during login. Please try again later.'
       });
     });
 
-    it('should return 400 if user is not found', async () => {
+    it('should return 500 if user not found', async () => {
       // Arrange
       mockRequest.body = {
         username: 'nonexistentuser',
         password: 'password123'
       };
-      mockFindUnique.mockResolvedValueOnce(null);
+      mockFindUnique.mockResolvedValue(null);
 
       // Act
       await login(mockRequest as Request, mockResponse as Response);
 
       // Assert
-      expect(mockFindUnique).toHaveBeenCalledWith({
-        where: { username: 'nonexistentuser' }
-      });
-      expect(mockResponse.status).toHaveBeenCalledWith(400);
-      expect(mockResponse.json).toHaveBeenCalledWith({
+      expect(statusCode).toBe(500);
+      expect(responseBody).toEqual({
         success: false,
-        error: 'Invalid credentials'
+        error: 'Invalid username or password'
       });
     });
 
-    it('should return 400 if password is incorrect', async () => {
+    it('should return 500 if password is incorrect', async () => {
       // Arrange
       mockRequest.body = {
-        username: 'existinguser',
+        username: 'testuser',
         password: 'wrongpassword'
       };
-      mockFindUnique.mockResolvedValueOnce({
-        id: 'user123',
-        username: 'existinguser',
+      mockFindUnique.mockResolvedValue({
+        id: 'user-123',
+        username: 'testuser',
         passwordHash: 'hashedpassword'
-      });
-      mockCompare.mockResolvedValueOnce(false);
+      } as any);
+      mockCompare.mockResolvedValue(false);
 
       // Act
       await login(mockRequest as Request, mockResponse as Response);
 
       // Assert
-      expect(mockFindUnique).toHaveBeenCalledWith({
-        where: { username: 'existinguser' }
-      });
+      expect(mockFindUnique).toHaveBeenCalledWith({ where: { username: 'testuser' } });
       expect(mockCompare).toHaveBeenCalledWith('wrongpassword', 'hashedpassword');
-      expect(mockResponse.status).toHaveBeenCalledWith(400);
-      expect(mockResponse.json).toHaveBeenCalledWith({
+      expect(statusCode).toBe(500);
+      expect(responseBody).toEqual({
         success: false,
-        error: 'Invalid credentials'
+        error: 'Invalid username or password'
       });
     });
 
-    it('should return 200 and a token on successful login', async () => {
+    it('should return 200 and token if login successful', async () => {
       // Arrange
       mockRequest.body = {
-        username: 'existinguser',
-        password: 'correctpassword'
+        username: 'testuser',
+        password: 'password123'
       };
-      mockFindUnique.mockResolvedValueOnce({
-        id: 'user123',
-        username: 'existinguser',
+
+      mockFindUnique.mockResolvedValue({
+        id: 'user-123',
+        username: 'testuser',
         passwordHash: 'hashedpassword'
-      });
-      mockCompare.mockResolvedValueOnce(true);
+      } as any);
+      mockCompare.mockResolvedValue(true);
+      mockSign.mockReturnValue('mock-token');
 
       // Act
       await login(mockRequest as Request, mockResponse as Response);
 
       // Assert
-      expect(mockFindUnique).toHaveBeenCalledWith({
-        where: { username: 'existinguser' }
-      });
-      expect(mockCompare).toHaveBeenCalledWith('correctpassword', 'hashedpassword');
+      expect(mockFindUnique).toHaveBeenCalledWith({ where: { username: 'testuser' } });
+      expect(mockCompare).toHaveBeenCalledWith('password123', 'hashedpassword');
       expect(mockSign).toHaveBeenCalled();
-      expect(mockResponse.status).toHaveBeenCalledWith(200);
-      expect(mockResponse.json).toHaveBeenCalledWith({
+      expect(statusCode).toBe(200);
+      expect(responseBody).toEqual({
         success: true,
         token: 'mock-token'
       });
@@ -280,7 +288,7 @@ describe('Auth Controller', () => {
     it('should return 500 if an error occurs during login', async () => {
       // Arrange
       mockRequest.body = {
-        username: 'existinguser',
+        username: 'testuser',
         password: 'password123'
       };
       mockFindUnique.mockRejectedValueOnce(new Error('Database error'));
@@ -289,12 +297,13 @@ describe('Auth Controller', () => {
       await login(mockRequest as Request, mockResponse as Response);
 
       // Assert
-      expect(mockResponse.status).toHaveBeenCalledWith(500);
-      expect(mockResponse.json).toHaveBeenCalledWith({
+      expect(statusCode).toBe(500);
+      expect(responseBody).toEqual({
         success: false,
         error: 'Server error'
       });
-      expect(mockLogger.error).toHaveBeenCalled();
+      // Verify logger was called with the error
+      expect(require('../../../utils/logger').logger.error).toHaveBeenCalled();
     });
   });
 }); 

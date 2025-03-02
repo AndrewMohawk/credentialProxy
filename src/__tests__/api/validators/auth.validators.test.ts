@@ -105,9 +105,9 @@ describe('Auth Validators', () => {
       expect(mockResponse.status).toHaveBeenCalledWith(400);
       expect(mockResponse.json).toHaveBeenCalledWith({
         errors: [
-          { param: 'username', msg: 'Username must be between 3 and 30 characters' },
-          { param: 'email', msg: 'Must be a valid email address' },
-          { param: 'password', msg: 'Password must be at least 8 characters long' }
+          { path: undefined, location: undefined, msg: 'Username must be between 3 and 30 characters' },
+          { path: undefined, location: undefined, msg: 'Must be a valid email address' },
+          { path: undefined, location: undefined, msg: 'Password must be at least 8 characters long' }
         ]
       });
     });
@@ -161,8 +161,8 @@ describe('Auth Validators', () => {
       expect(mockResponse.status).toHaveBeenCalledWith(400);
       expect(mockResponse.json).toHaveBeenCalledWith({
         errors: [
-          { param: 'usernameOrEmail', msg: 'Username or email is required' },
-          { param: 'password', msg: 'Password is required' }
+          { path: undefined, location: undefined, msg: 'Username or email is required' },
+          { path: undefined, location: undefined, msg: 'Password is required' }
         ]
       });
     });

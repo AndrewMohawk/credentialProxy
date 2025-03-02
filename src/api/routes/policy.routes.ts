@@ -1,34 +1,23 @@
-import express from 'express';
-import { authMiddleware } from '../../middleware/auth';
+import { Router } from 'express';
+import * as policyController from '../controllers/policy.controller';
+import * as policyTemplateController from '../controllers/policyTemplate.controller';
+import { authenticateJWT } from '../../middleware/auth';
 
-const router = express.Router();
+const router = Router();
 
-// Apply auth middleware to all policy routes
-router.use(authMiddleware);
+// Policy routes
+router.get('/', authenticateJWT, policyController.getAllPolicies);
+router.get('/:id', authenticateJWT, policyController.getPolicyById);
+router.post('/', authenticateJWT, policyController.createPolicy);
+router.put('/:id', authenticateJWT, policyController.updatePolicy);
+router.delete('/:id', authenticateJWT, policyController.deletePolicy);
 
-// Placeholder route for getting all policies
-router.get('/', (req, res) => {
-  res.status(200).json({ message: 'Get all policies endpoint' });
-});
+// New Template routes
+router.get('/templates/all', authenticateJWT, policyTemplateController.getAllTemplates);
+router.get('/templates/type/:credentialType', authenticateJWT, policyTemplateController.getTemplatesForType);
+router.get('/templates/:id', authenticateJWT, policyTemplateController.getTemplate);
+router.get('/templates/credential/:credentialId', authenticateJWT, policyTemplateController.getTemplatesForCredential);
+router.post('/templates/credential/:credentialId/apply', authenticateJWT, policyTemplateController.applyTemplate);
+router.post('/templates/credential/:credentialId/apply-recommended', authenticateJWT, policyTemplateController.applyRecommendedTemplates);
 
-// Placeholder route for getting a specific policy
-router.get('/:id', (req, res) => {
-  res.status(200).json({ message: `Get policy with ID: ${req.params.id}` });
-});
-
-// Placeholder route for creating a new policy
-router.post('/', (req, res) => {
-  res.status(201).json({ message: 'Create policy endpoint' });
-});
-
-// Placeholder route for updating a policy
-router.put('/:id', (req, res) => {
-  res.status(200).json({ message: `Update policy with ID: ${req.params.id}` });
-});
-
-// Placeholder route for deleting a policy
-router.delete('/:id', (req, res) => {
-  res.status(200).json({ message: `Delete policy with ID: ${req.params.id}` });
-});
-
-export const policyRoutes = router; 
+export { router as policyRoutes }; 

@@ -28,7 +28,7 @@ jest.mock('../../db/prisma', () => ({
 
 // Mock the auth middleware
 jest.mock('../../middleware/auth', () => ({
-  authMiddleware: (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  authenticateJWT: (req: express.Request, res: express.Response, next: express.NextFunction) => {
     req.user = { id: 'test-user-id', username: 'testuser', email: 'test@example.com' };
     next();
   },

@@ -1,5 +1,5 @@
 import express from 'express';
-import { authMiddleware } from '../../middleware/auth';
+import { authenticateJWT } from '../../middleware/auth';
 import { getPluginManager } from '../../plugins';
 import { logger } from '../../utils/logger';
 
@@ -26,10 +26,50 @@ interface Plugin {
   credentialSchema?: any;
 }
 
+interface PluginInfo {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  type: string;
+  version: string;
+}
+
+interface PluginResponse {
+  success: boolean;
+  plugins: PluginInfo[];
+}
+
 const router = express.Router();
 
-// Require authentication for all admin routes
+// Admin-only middleware
+const adminOnly = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  try {
+    // Check if user is authenticated and has admin role
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const userId = req.user.id;
+    
+    // TODO: Implement admin role check when roles system is completed
+    // For now, assume all authenticated users are admins
+    
+    next();
+  } catch (err) {
+    logger.error('Admin check error:', err);
+    res.status(500).json({ error: 'Server error during admin check' });
+  }
+};
+
+// Create a middleware wrapper for authenticateJWT
+const authMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  authenticateJWT(req, res, next);
+};
+
+// Apply authentication and admin middleware to all admin routes
 router.use(authMiddleware);
+router.use(adminOnly);
 
 // Get all available credential plugins
 router.get('/plugins', async (req, res) => {

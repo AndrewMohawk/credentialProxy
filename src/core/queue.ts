@@ -7,6 +7,18 @@ const redisOptions = {
   url: process.env.REDIS_URL || 'redis://localhost:6380',
 };
 
+// Create Redis client for direct use
+export const createRedisClient = () => {
+  const client = createClient({
+    url: redisOptions.url,
+  });
+  client.on('error', (err) => logger.error('Redis Client Error', err));
+  return client;
+};
+
+// Singleton Redis client for application-wide use
+export const redis = createRedisClient();
+
 // Queue definitions
 export const requestQueue = new Queue('requestProcessing', { connection: redisOptions });
 export const notificationQueue = new Queue('notifications', { connection: redisOptions });
@@ -35,31 +47,46 @@ const notificationWorker = new Worker('notifications', async (job) => {
   }
 }, { connection: redisOptions });
 
-// Handle request queue events
-const requestQueueEvents = new QueueEvents('requestProcessing', { connection: redisOptions });
-requestQueueEvents.on('completed', ({ jobId, returnvalue }) => {
-  logger.info(`Request job ${jobId} completed`);
-});
-requestQueueEvents.on('failed', ({ jobId, failedReason }) => {
-  logger.error(`Request job ${jobId} failed: ${failedReason}`);
+// Set up queue event handlers
+requestWorker.on('completed', job => {
+  logger.info(`Request job ${job.id} completed`);
 });
 
-// Handle notification queue events
-const notificationQueueEvents = new QueueEvents('notifications', { connection: redisOptions });
-notificationQueueEvents.on('completed', ({ jobId, returnvalue }) => {
-  logger.info(`Notification job ${jobId} completed`);
-});
-notificationQueueEvents.on('failed', ({ jobId, failedReason }) => {
-  logger.error(`Notification job ${jobId} failed: ${failedReason}`);
+requestWorker.on('failed', (job, err) => {
+  logger.error(`Request job ${job?.id} failed: ${err}`);
 });
 
-// Setup function to initialize queues
+notificationWorker.on('completed', job => {
+  logger.info(`Notification job ${job.id} completed`);
+});
+
+notificationWorker.on('failed', (job, err) => {
+  logger.error(`Notification job ${job?.id} failed: ${err}`);
+});
+
 export const setupQueues = async (): Promise<void> => {
-  logger.info('Setting up background processing queues');
+  logger.info('Setting up job queues');
   
-  // Initialize any queue-related setup here
-  await requestQueue.obliterate({ force: true });
-  await notificationQueue.obliterate({ force: true });
+  try {
+    // Connect the Redis client
+    await redis.connect();
+    logger.info('Redis client connected successfully');
+  } catch (error) {
+    logger.error(`Error connecting to Redis: ${error}`);
+  }
+};
+
+// Graceful shutdown
+export const closeQueues = async (): Promise<void> => {
+  logger.info('Closing job queues');
   
-  logger.info('Background processing queues setup complete');
+  try {
+    await requestWorker.close();
+    await notificationWorker.close();
+    await requestQueue.close();
+    await notificationQueue.close();
+    await redis.disconnect();
+  } catch (error) {
+    logger.error(`Error closing queues: ${error}`);
+  }
 }; 

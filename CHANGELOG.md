@@ -1,43 +1,43 @@
-# Changelog
-
-All notable changes to the Credential Proxy project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+# Change Log
 
 ## [Unreleased]
 
 ### Added
-- Application self-registration API endpoint for third-party applications
-- Application status tracking (ACTIVE, PENDING, REVOKED)
-- Credential revocation endpoint for applications
-- Application self-revocation endpoint for compromised applications
-- Admin endpoint to approve pending applications
-- Pre-approved public keys feature for automatic application approval
-- Centralized configuration module for managing environment variables and settings
-- Service Container pattern for dependency injection and better testability
-- Enhanced error handling with custom error types and consistent error responses
-- Rate limiting middleware for API endpoints with different limits for various endpoints
-- API documentation structure (to be implemented)
+- Enhanced policy system with new policy types:
+  - Rate Limiting: Limit request frequency
+  - IP Restriction: Control access by IP address/range
+  - Usage Threshold: Set limits on usage metrics
+  - Context-Aware: Policies based on request context
+  - Approval Chain: Multi-step approval workflows
+- Policy templates system for easy policy creation
+  - Predefined templates for common security patterns
+  - Templates organized by category (Access Control, Usage Limits, etc.)
+  - Ability to customize templates when applying
+- Policy evaluation engine with support for all policy types
+- API endpoints for managing policy templates
+- Utility services for IP address validation and usage metrics tracking
 
 ### Changed
-- Refactored server.ts into modular components for better maintainability
-- Updated credential management to use centralized configuration
-- Updated proxy queue processor to use service container and centralized configuration
-- Improved error handling in main proxy request flow
-- Enhanced security headers in Helmet configuration
+- Refactored policy evaluation logic for better extensibility
+- Updated Redis client implementation for better error handling
+- Enhanced policy testing with comprehensive test coverage
+- Updated Ethereum plugin to be compatible with latest Viem library types
 
 ### Fixed
-- Consistent error responses across the API
-- Improved environment variable validation and defaults
+- Improved error handling in policy evaluation
+- Fixed Redis connection management
+- Fixed API tests for credential routes to handle cases without applicationId
+- Fixed admin routes tests by updating expected plugin structure
+- Fixed pre-approved keys routes tests by adjusting date comparison
+- Fixed TypeScript errors in Ethereum plugin related to transaction parameters
+- Fixed policy template service tests to properly handle mock data in test environment
 
-## [1.0.0] - 2023-03-01
+## [1.0.0] - 2023-12-15
 
 ### Added
-- Initial release
-- Secure credential storage with encryption
-- Policy-based access control system
-- Plugin system for different credential types
-- Request signing for secure third-party application authentication
-- Audit logging for all credential usage
-- Queue-based asynchronous processing 
+- Initial release of Credential Proxy
+- Basic policy types: Allow List, Deny List, Time-Based, Count-Based, Manual Approval, Pattern Match
+- Credential management system
+- Plugin architecture for credential types
+- Request signing for authentication
+- Basic web interface 

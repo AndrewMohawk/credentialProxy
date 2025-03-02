@@ -28,7 +28,7 @@ jest.mock('../../../src/utils/logger', () => ({
 
 // Mock the authentication middleware
 jest.mock('../../../src/middleware/auth', () => ({
-  authMiddleware: (req: any, res: any, next: () => void) => next()
+  authenticateJWT: (req: any, res: any, next: () => void) => next()
 }));
 
 // Mock the auth controller
@@ -56,6 +56,12 @@ jest.mock('../../api/controllers/auth.controller', () => ({
         error: 'Invalid credentials'
       });
     }
+  }),
+  logout: jest.fn((req, res) => {
+    return res.status(200).json({
+      success: true,
+      message: 'Logged out successfully'
+    });
   }),
   registerUser: jest.fn(),
   getPasskeyRegistrationOptions: jest.fn(),

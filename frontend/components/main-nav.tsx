@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Home, Key, AppWindow, FileText, Activity, PlugIcon as Plugin, BarChart2, Settings, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { usePathname } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
 
 const navItems = [
   { href: "/", icon: Home, label: "Dashboard" },
@@ -19,6 +20,7 @@ const navItems = [
 
 export function MainNav({ className, ...props }: React.HTMLAttributes<HTMLElement>) {
   const pathname = usePathname()
+  const { logout } = useAuth()
 
   return (
     <nav className={cn("flex md:flex-col space-x-2 md:space-x-0 md:space-y-1", className)} {...props}>
@@ -42,8 +44,8 @@ export function MainNav({ className, ...props }: React.HTMLAttributes<HTMLElemen
           "hover:bg-muted hover:text-foreground text-muted-foreground",
         )}
         onClick={() => {
-          // Add logout logic here
-          console.log("Logout clicked")
+          console.log("Logout clicked from MainNav");
+          logout();
         }}
       >
         <LogOut className="mr-2 h-4 w-4" />

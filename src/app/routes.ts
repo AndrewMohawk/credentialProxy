@@ -10,6 +10,8 @@ import { applicationRoutes } from '../api/routes/application.routes';
 import { proxyRoutes } from '../api/routes/proxy.routes';
 import { adminRoutes } from '../api/routes/admin.routes';
 import { preApprovedKeysRoutes } from '../api/routes/pre-approved-keys.routes';
+import { dashboardRoutes } from '../api/routes/dashboard.routes';
+import { auditRoutes } from '../api/routes/audit.routes';
 
 /**
  * Configure all routes for the Express application
@@ -35,6 +37,8 @@ export const configureRoutes = (app: Express): void => {
   app.use(`${apiPrefix}/applications`, applicationRoutes);
   app.use(`${apiPrefix}/admin`, adminRoutes);
   app.use(`${apiPrefix}/pre-approved-keys`, preApprovedKeysRoutes);
+  app.use(`${apiPrefix}/dashboard`, dashboardRoutes);
+  app.use(`${apiPrefix}/audit-logs`, auditRoutes);
   
   // Health check endpoint
   app.get('/health', (req, res) => {

@@ -49,12 +49,14 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "prom-client": "^15.1.0",
+    "recharts": "^2.15.1",
     "redis": "^4.6.13",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^9.0.1",
     "viem": "^2.23.5",
-    "winston": "^3.11.0"
+    "winston": "^3.11.0",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
