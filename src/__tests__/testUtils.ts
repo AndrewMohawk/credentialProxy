@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { CredentialPlugin } from '../plugins/CredentialPlugin';
+import { CredentialPlugin, RiskAssessment, OperationMetadata, PolicyConfig as PluginPolicyConfig } from '../plugins/CredentialPlugin';
 
 // Mock PolicyType enum since we're having issues with it
 export enum PolicyType {
@@ -34,12 +34,20 @@ export interface PolicyConfig {
 }
 
 // Define the OperationMetadata interface for testing
-export interface TestOperationMetadata {
-  id: string;
+export interface TestOperationMetadata extends Omit<OperationMetadata, 'applicablePolicies'> {
+  id?: string;
   name: string;
   description: string;
   requiredParams: string[];
   optionalParams: string[];
+  riskLevel: number;
+  applicablePolicies: PolicyType[];
+  recommendedPolicies?: PolicyType[];
+  suggestedRateLimits?: {
+    perMinute?: number;
+    perHour?: number;
+    perDay?: number;
+  };
 }
 
 /**
@@ -62,20 +70,41 @@ export class MockCredentialPlugin implements CredentialPlugin {
     },
   };
   
-  supportedOperations: TestOperationMetadata[] = [
+  riskAssessment: RiskAssessment = {
+    baseScore: 5,
+    contextualFactors: {
+      networkRestrictions: false,
+      timeRestrictions: false,
+      dataAccess: 'read',
+    },
+    calculateRiskForOperation: (operation: string, context?: any) => {
+      return this.supportedOperations.find(op => op.name === operation)?.riskLevel || this.riskAssessment.baseScore;
+    }
+  };
+  
+  supportedOperations: OperationMetadata[] = [
     {
-      id: 'TEST_OPERATION',
       name: 'TEST_OPERATION',
       description: 'A test operation',
       requiredParams: ['param1'],
       optionalParams: ['param2'],
+      riskLevel: 3,
+      applicablePolicies: [
+        PolicyType.ALLOW_LIST,
+        PolicyType.DENY_LIST,
+        PolicyType.COUNT_BASED
+      ],
+      recommendedPolicies: [PolicyType.ALLOW_LIST],
+      suggestedRateLimits: {
+        perMinute: 10,
+        perHour: 100,
+        perDay: 1000
+      }
     },
   ];
   
-  supportedPolicies: PolicyConfig[] = [
+  supportedPolicies: PluginPolicyConfig[] = [
     {
-      id: 'ALLOW_LIST',
-      name: 'ALLOW_LIST',
       type: PolicyType.ALLOW_LIST,
       description: 'Allow specific operations',
       defaultConfig: {},
@@ -108,6 +137,23 @@ export class MockCredentialPlugin implements CredentialPlugin {
       };
     }
     throw new Error(`Unsupported operation: ${operation}`);
+  }
+  
+  async checkCredentialHealth(
+    credentialData: Record<string, any>
+  ): Promise<{
+    isValid: boolean;
+    expiresAt?: Date;
+    issues: string[];
+    recommendations: string[];
+    lastChecked: Date;
+  }> {
+    return {
+      isValid: true,
+      issues: [],
+      recommendations: [],
+      lastChecked: new Date()
+    };
   }
 }
 

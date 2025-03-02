@@ -96,14 +96,29 @@ model Policy {
 
 // Application model for third-party apps
 model Application {
-  id               String       @id @default(uuid())
+  id               String          @id @default(uuid())
   name             String
-  publicKey        String       // For verifying request signatures
+  publicKey        String          // For verifying request signatures
+  status           ApplicationStatus @default(PENDING)
   credentials      Credential[]
   policies         Policy[]
   auditEvents      AuditEvent[]
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  secret           String?         // Optional secret key, visible only during application creation
+  description      String?
+  callbackUrl      String?         // URL to notify the application of events
+  registrationIp   String?         // IP from which the application was registered
+  lastAccessedAt   DateTime?       // When the application last made a request
+  revokedAt        DateTime?       // When the application was revoked
+  revokedReason    String?         // Reason for revocation
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+// Status of an application
+enum ApplicationStatus {
+  ACTIVE    // Application is active and can use credentials
+  PENDING   // Application is pending approval
+  REVOKED   // Application has been revoked
 }
 
 // Request status for audit logging

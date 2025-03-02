@@ -13,6 +13,8 @@ Key features:
 - Comprehensive audit logging of all credential usage
 - Support for various credential types (API keys, OAuth tokens, Ethereum keys, etc.)
 - Queue-based asynchronous processing for reliability
+- Self-registration for third-party applications
+- Credential revocation capabilities for applications
 
 ## Architecture
 
@@ -24,6 +26,96 @@ The Credential Proxy is built with the following components:
 - **Queue System**: BullMQ with Redis for reliable asynchronous processing
 - **Database**: PostgreSQL with Prisma ORM for data storage
 - **Monitoring**: Prometheus and Grafana for metrics and monitoring
+
+## Application Registration
+
+Third-party applications can be registered in two ways:
+
+### 1. Admin Registration
+
+Administrators can register applications through the admin interface or API. This is the default method and provides immediate access to the system.
+
+### 2. Self-Registration
+
+Applications can self-register through the API if this feature is enabled. Self-registration can be configured to:
+
+- Require admin approval before activation (default)
+- Automatically activate applications upon registration
+
+To enable self-registration, set the following environment variables:
+
+```
+ALLOW_AUTO_REGISTRATION=true
+AUTO_REGISTRATION_DEFAULT_STATUS=pending  # or 'active' to skip approval
+```
+
+#### Self-Registration Process
+
+1. The application makes a POST request to `/api/v1/applications/register-self` with:
+   ```json
+   {
+     "name": "My Application",
+     "publicKey": "-----BEGIN PUBLIC KEY-----\n...",
+     "description": "Application description",
+     "callbackUrl": "https://myapp.example.com/callback"
+   }
+   ```
+
+2. The Credential Proxy returns:
+   ```json
+   {
+     "success": true,
+     "data": {
+       "id": "app_123456789",
+       "name": "My Application",
+       "publicKey": "-----BEGIN PUBLIC KEY-----\n...",
+       "status": "PENDING",
+       "secret": "abcdef123456789" 
+     },
+     "message": "Application registered successfully and is pending approval"
+   }
+   ```
+
+3. The application must securely store the returned `secret`, as it will only be provided once and is required for credential revocation.
+
+4. If approval is required, an administrator must approve the application through the admin interface or API before it can be used.
+
+### Credential Revocation
+
+Applications can revoke their access to specific credentials if they no longer need them or suspect a security issue:
+
+```javascript
+axios.post('https://credential-proxy.example.com/api/v1/applications/revoke-credential', {
+  applicationId: 'app_123456789',
+  credentialId: 'cred_987654321',
+  secret: 'abcdef123456789',
+  reason: 'No longer needed'
+})
+.then(response => {
+  console.log('Credential revoked successfully');
+})
+.catch(error => {
+  console.error('Error:', error.response?.data || error.message);
+});
+```
+
+### Application Self-Revocation
+
+If an application suspects it has been compromised, it can completely revoke its own access:
+
+```javascript
+axios.post('https://credential-proxy.example.com/api/v1/applications/revoke-self', {
+  applicationId: 'app_123456789',
+  secret: 'abcdef123456789',
+  reason: 'Application compromised'
+})
+.then(response => {
+  console.log('Application revoked successfully');
+})
+.catch(error => {
+  console.error('Error:', error.response?.data || error.message);
+});
+```
 
 ## Example Usage
 
@@ -341,4 +433,4 @@ The Credential Proxy exposes a REST API for plugin discovery:
 - `GET /api/v1/admin/plugins`: List all available plugins
 - `GET /api/v1/admin/plugins/:id`: Get details for a specific plugin
 
-These endpoints require authentication and are intended for admin use. 
+These endpoints require authentication and are intended for admin use.

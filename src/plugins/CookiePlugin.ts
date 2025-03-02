@@ -1,7 +1,8 @@
 import { BaseCredentialPlugin } from './BaseCredentialPlugin';
-import { OperationResult, OperationMetadata } from '../types/operation';
+import { OperationMetadata, RiskAssessment } from './CredentialPlugin';
 import { PolicyType } from '../core/policies/policyEngine';
 import { logger } from '../utils/logger';
+import { OperationResult } from '../types/operation';
 
 interface Cookie {
   name: string;
@@ -33,18 +34,62 @@ export class CookiePlugin extends BaseCredentialPlugin {
     }
   };
   
+  public readonly riskAssessment: RiskAssessment = {
+    baseScore: 6, // Cookies can be high risk as they often contain session data
+    contextualFactors: {
+      networkRestrictions: true,
+      timeRestrictions: true,
+      dataAccess: 'read'
+    },
+    calculateRiskForOperation: (operation: string, context?: any) => {
+      if (operation === 'get_cookies') {
+        return 4; // Lower risk for read-only operation
+      } else if (operation === 'add_cookies_to_request') {
+        return 7; // Higher risk as it's being used in a request
+      }
+      return this.riskAssessment.baseScore;
+    }
+  };
+  
   public readonly supportedOperations: OperationMetadata[] = [
     {
       name: 'get_cookies',
       description: 'Get all cookies in the credential',
       requiredParams: [],
-      optionalParams: ['domain', 'path']
+      optionalParams: ['domain', 'path'],
+      riskLevel: 4,
+      applicablePolicies: [
+        PolicyType.ALLOW_LIST,
+        PolicyType.TIME_BASED
+      ],
+      recommendedPolicies: [PolicyType.ALLOW_LIST],
+      suggestedRateLimits: {
+        perMinute: 10,
+        perHour: 100
+      }
     },
     {
       name: 'add_cookies_to_request',
       description: 'Add cookies to a request as headers',
       requiredParams: ['headers'],
-      optionalParams: ['domain', 'path']
+      optionalParams: ['domain', 'path'],
+      riskLevel: 7,
+      applicablePolicies: [
+        PolicyType.ALLOW_LIST,
+        PolicyType.DENY_LIST,
+        PolicyType.TIME_BASED,
+        PolicyType.COUNT_BASED,
+        PolicyType.MANUAL_APPROVAL
+      ],
+      recommendedPolicies: [
+        PolicyType.ALLOW_LIST,
+        PolicyType.COUNT_BASED
+      ],
+      suggestedRateLimits: {
+        perMinute: 5,
+        perHour: 50,
+        perDay: 200
+      }
     }
   ];
   
@@ -62,6 +107,28 @@ export class CookiePlugin extends BaseCredentialPlugin {
       defaultConfig: {
         operations: []
       }
+    },
+    {
+      type: PolicyType.TIME_BASED,
+      description: 'Allow cookie operations only during specific times',
+      defaultConfig: {
+        startTime: '09:00',
+        endTime: '17:00',
+        daysOfWeek: [1, 2, 3, 4, 5] // Monday to Friday
+      }
+    },
+    {
+      type: PolicyType.COUNT_BASED,
+      description: 'Limit the number of cookie operations in a time period',
+      defaultConfig: {
+        maxRequests: 50,
+        timeWindowMinutes: 60
+      }
+    },
+    {
+      type: PolicyType.MANUAL_APPROVAL,
+      description: 'Require manual approval for cookie operations',
+      defaultConfig: {}
     }
   ];
 

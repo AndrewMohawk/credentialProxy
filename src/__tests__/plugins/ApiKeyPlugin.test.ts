@@ -1,5 +1,5 @@
 import { BaseCredentialPlugin } from '../../plugins/BaseCredentialPlugin';
-import { OperationMetadata, PolicyConfig } from '../../plugins/CredentialPlugin';
+import { OperationMetadata, PolicyConfig, RiskAssessment } from '../../plugins/CredentialPlugin';
 import { mockAxiosResponse, PolicyType } from '../testUtils';
 import axios from 'axios';
 
@@ -42,6 +42,26 @@ class ApiKeyPlugin extends BaseCredentialPlugin {
     },
   };
   
+  riskAssessment: RiskAssessment = {
+    baseScore: 5,
+    contextualFactors: {
+      networkRestrictions: true,
+      timeRestrictions: false,
+      dataAccess: 'read',
+    },
+    calculateRiskForOperation: (operation: string, context?: any) => {
+      const op = this.supportedOperations.find(op => op.name === operation);
+      if (!op) return this.riskAssessment.baseScore;
+      
+      // Higher risk for write operations
+      if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(operation)) {
+        return op.riskLevel + 2;
+      }
+      
+      return op.riskLevel;
+    }
+  };
+  
   // Define supported operations
   supportedOperations: OperationMetadata[] = [
     {
@@ -50,6 +70,19 @@ class ApiKeyPlugin extends BaseCredentialPlugin {
       requiredParams: ['url'],
       optionalParams: ['headers', 'params'],
       returns: 'HTTP response',
+      riskLevel: 3,
+      applicablePolicies: [
+        PolicyType.ALLOW_LIST,
+        PolicyType.DENY_LIST,
+        PolicyType.COUNT_BASED,
+        PolicyType.TIME_BASED
+      ],
+      recommendedPolicies: [PolicyType.ALLOW_LIST],
+      suggestedRateLimits: {
+        perMinute: 30,
+        perHour: 500,
+        perDay: 5000
+      }
     },
     {
       name: 'POST',
@@ -57,6 +90,19 @@ class ApiKeyPlugin extends BaseCredentialPlugin {
       requiredParams: ['url'],
       optionalParams: ['headers', 'data', 'params'],
       returns: 'HTTP response',
+      riskLevel: 6,
+      applicablePolicies: [
+        PolicyType.ALLOW_LIST,
+        PolicyType.DENY_LIST,
+        PolicyType.COUNT_BASED,
+        PolicyType.MANUAL_APPROVAL
+      ],
+      recommendedPolicies: [PolicyType.ALLOW_LIST, PolicyType.MANUAL_APPROVAL],
+      suggestedRateLimits: {
+        perMinute: 10,
+        perHour: 100,
+        perDay: 500
+      }
     },
     {
       name: 'PUT',
@@ -64,6 +110,19 @@ class ApiKeyPlugin extends BaseCredentialPlugin {
       requiredParams: ['url'],
       optionalParams: ['headers', 'data', 'params'],
       returns: 'HTTP response',
+      riskLevel: 7,
+      applicablePolicies: [
+        PolicyType.ALLOW_LIST,
+        PolicyType.DENY_LIST,
+        PolicyType.COUNT_BASED,
+        PolicyType.MANUAL_APPROVAL
+      ],
+      recommendedPolicies: [PolicyType.ALLOW_LIST, PolicyType.MANUAL_APPROVAL],
+      suggestedRateLimits: {
+        perMinute: 5,
+        perHour: 50,
+        perDay: 200
+      }
     },
     {
       name: 'DELETE',
@@ -71,6 +130,18 @@ class ApiKeyPlugin extends BaseCredentialPlugin {
       requiredParams: ['url'],
       optionalParams: ['headers', 'data', 'params'],
       returns: 'HTTP response',
+      riskLevel: 8,
+      applicablePolicies: [
+        PolicyType.ALLOW_LIST,
+        PolicyType.DENY_LIST,
+        PolicyType.MANUAL_APPROVAL
+      ],
+      recommendedPolicies: [PolicyType.MANUAL_APPROVAL],
+      suggestedRateLimits: {
+        perMinute: 2,
+        perHour: 20,
+        perDay: 100
+      }
     },
     {
       name: 'PATCH',
@@ -78,6 +149,19 @@ class ApiKeyPlugin extends BaseCredentialPlugin {
       requiredParams: ['url'],
       optionalParams: ['headers', 'data', 'params'],
       returns: 'HTTP response',
+      riskLevel: 6,
+      applicablePolicies: [
+        PolicyType.ALLOW_LIST,
+        PolicyType.DENY_LIST,
+        PolicyType.COUNT_BASED,
+        PolicyType.MANUAL_APPROVAL
+      ],
+      recommendedPolicies: [PolicyType.ALLOW_LIST, PolicyType.MANUAL_APPROVAL],
+      suggestedRateLimits: {
+        perMinute: 10,
+        perHour: 100,
+        perDay: 500
+      }
     },
   ];
   

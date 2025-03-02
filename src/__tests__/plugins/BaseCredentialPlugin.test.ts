@@ -1,5 +1,5 @@
 import { BaseCredentialPlugin } from '../../plugins/BaseCredentialPlugin';
-import { OperationMetadata, PolicyConfig } from '../../plugins/CredentialPlugin';
+import { OperationMetadata, PolicyConfig, RiskAssessment } from '../../plugins/CredentialPlugin';
 import { PolicyType } from '../testUtils';
 
 // Create a concrete implementation of BaseCredentialPlugin for testing
@@ -20,12 +20,32 @@ class TestPlugin extends BaseCredentialPlugin {
     },
   };
   
+  riskAssessment: RiskAssessment = {
+    baseScore: 4,
+    contextualFactors: {
+      networkRestrictions: false,
+      timeRestrictions: false,
+      dataAccess: 'read',
+    },
+    calculateRiskForOperation: (operation: string, context?: any) => {
+      const op = this.supportedOperations.find(op => op.name === operation);
+      return op ? op.riskLevel : this.riskAssessment.baseScore;
+    }
+  };
+  
   supportedOperations: OperationMetadata[] = [
     {
       name: 'TEST_OP',
       description: 'A test operation',
       requiredParams: ['requiredParam'],
       optionalParams: ['optionalParam'],
+      riskLevel: 3,
+      applicablePolicies: [PolicyType.ALLOW_LIST, PolicyType.COUNT_BASED],
+      recommendedPolicies: [PolicyType.ALLOW_LIST],
+      suggestedRateLimits: {
+        perMinute: 5,
+        perHour: 100
+      }
     },
   ];
   

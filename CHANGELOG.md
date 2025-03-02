@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Application self-registration API endpoint for third-party applications
+- Application status tracking (ACTIVE, PENDING, REVOKED)
+- Credential revocation endpoint for applications
+- Application self-revocation endpoint for compromised applications
+- Admin endpoint to approve pending applications
 - Centralized configuration module for managing environment variables and settings
 - Service Container pattern for dependency injection and better testability
 - Enhanced error handling with custom error types and consistent error responses

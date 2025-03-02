@@ -12,19 +12,17 @@ Object.defineProperty(mockPlugin2, 'name', { value: 'Mock Plugin 2' });
 // Update the supportedPolicies for the mock plugins to match expected output
 mockPlugin1.supportedPolicies = [
   {
-    id: 'ALLOW_LIST',
-    name: 'ALLOW_LIST',
     type: PolicyType.ALLOW_LIST,
     description: 'Allow specific operations',
+    defaultConfig: {}
   }
 ];
 
 mockPlugin2.supportedPolicies = [
   {
-    id: 'ALLOW_LIST',
-    name: 'ALLOW_LIST',
     type: PolicyType.ALLOW_LIST,
     description: 'Allow specific operations',
+    defaultConfig: {}
   }
 ];
 
@@ -94,10 +92,9 @@ describe('Admin Routes', () => {
         ],
         policies: [
           {
-            id: 'ALLOW_LIST',
-            name: 'ALLOW_LIST',
             description: 'Allow specific operations',
             type: 'ALLOW_LIST',
+            name: '',
           },
         ],
       };
@@ -155,10 +152,9 @@ describe('Admin Routes', () => {
         ],
         policies: [
           {
-            id: 'ALLOW_LIST',
-            name: 'ALLOW_LIST',
             description: 'Allow specific operations',
             type: 'ALLOW_LIST',
+            name: '',
           },
         ],
         schema: {

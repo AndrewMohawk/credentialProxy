@@ -70,4 +70,11 @@ export const config = {
       delay: 5000,
     },
   },
+  
+  applications: {
+    // Allow applications to register themselves without admin approval
+    allowAutoRegistration: process.env.ALLOW_AUTO_REGISTRATION === 'true' || false,
+    // Default status for auto-registered applications: pending, active, inactive
+    autoRegistrationDefaultStatus: process.env.AUTO_REGISTRATION_DEFAULT_STATUS || 'pending',
+  },
 }; 
