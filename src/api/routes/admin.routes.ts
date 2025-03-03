@@ -2,6 +2,9 @@ import express from 'express';
 import { authenticateJWT } from '../../middleware/auth';
 import { getPluginManager } from '../../plugins';
 import { logger } from '../../utils/logger';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 // Define interfaces for plugin-related types
 interface PluginOperation {
@@ -78,24 +81,12 @@ router.get('/plugins', async (req, res) => {
     const plugins = pluginManager.getAllPlugins().map((plugin) => {
       // Create a safe representation of the plugin for the API
       return {
-        id: plugin.id,
-        name: plugin.name,
-        description: plugin.description,
-        version: plugin.version,
-        operations: Array.isArray(plugin.supportedOperations) 
-          ? plugin.supportedOperations.map((op: any) => ({
-              id: typeof op.id === 'string' ? op.id : op.name,
-              name: op.name,
-              description: op.description || '',
-            }))
-          : [],
-        policies: Array.isArray(plugin.supportedPolicies)
-          ? plugin.supportedPolicies.map((policy: any) => ({
-              id: typeof policy.id === 'string' ? policy.id : policy.name,
-              name: policy.name || '',
-              description: policy.description || '',
-            }))
-          : [],
+        id: plugin.getId(),
+        name: plugin.getName(),
+        description: plugin.getDescription(),
+        version: plugin.getVersion(),
+        type: plugin.getType(),
+        enabled: pluginManager.isPluginEnabled(plugin.getType())
       };
     });
     
@@ -128,26 +119,13 @@ router.get('/plugins/:id', async (req, res) => {
     
     // Create a safe representation of the plugin for the API
     const safePlugin = {
-      id: plugin.id,
-      name: plugin.name,
-      description: plugin.description,
-      version: plugin.version,
-      operations: Array.isArray(plugin.supportedOperations) 
-        ? plugin.supportedOperations.map((op: any) => ({
-            id: typeof op.id === 'string' ? op.id : op.name,
-            name: op.name,
-            description: op.description || '',
-          }))
-        : [],
-      policies: Array.isArray(plugin.supportedPolicies)
-        ? plugin.supportedPolicies.map((policy: any) => ({
-            id: typeof policy.id === 'string' ? policy.id : policy.name,
-            name: policy.name || '',
-            description: policy.description || '',
-            type: policy.type || '',
-          }))
-        : [],
-      schema: plugin.credentialSchema,
+      id: plugin.getId(),
+      name: plugin.getName(),
+      description: plugin.getDescription(),
+      version: plugin.getVersion(),
+      type: plugin.getType(),
+      enabled: pluginManager.isPluginEnabled(plugin.getType()),
+      schema: plugin.getFields()
     };
     
     res.status(200).json({
@@ -159,6 +137,104 @@ router.get('/plugins/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to get plugin',
+    });
+  }
+});
+
+// Enable a plugin
+router.post('/plugins/:id/enable', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pluginManager = getPluginManager();
+    const plugin = pluginManager.getPlugin(id);
+    
+    if (!plugin) {
+      return res.status(404).json({
+        success: false,
+        error: `Plugin with ID ${id} not found`,
+      });
+    }
+    
+    await pluginManager.enablePlugin(id);
+    
+    res.status(200).json({
+      success: true,
+      message: `Plugin ${plugin.getName()} has been enabled`,
+    });
+  } catch (error: any) {
+    logger.error(`Error enabling plugin: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to enable plugin',
+    });
+  }
+});
+
+// Disable a plugin
+router.post('/plugins/:id/disable', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pluginManager = getPluginManager();
+    const plugin = pluginManager.getPlugin(id);
+    
+    if (!plugin) {
+      return res.status(404).json({
+        success: false,
+        error: `Plugin with ID ${id} not found`,
+      });
+    }
+    
+    // Check if there are credentials using this plugin type
+    const credentialCount = await prisma.credential.count({
+      where: {
+        type: id as any // Convert to enum type
+      }
+    });
+    
+    if (credentialCount > 0) {
+      // We'll mark these credentials as inactive but not delete them
+      logger.info(`Disabling plugin ${id} with ${credentialCount} associated credentials`);
+    }
+    
+    await pluginManager.disablePlugin(id);
+    
+    res.status(200).json({
+      success: true,
+      message: `Plugin ${plugin.getName()} has been disabled`,
+      affectedCredentials: credentialCount
+    });
+  } catch (error: any) {
+    logger.error(`Error disabling plugin: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to disable plugin',
+    });
+  }
+});
+
+// Get all enabled plugins
+router.get('/plugins/enabled', async (req, res) => {
+  try {
+    const pluginManager = getPluginManager();
+    const plugins = pluginManager.getEnabledPlugins().map((plugin) => {
+      return {
+        id: plugin.getId(),
+        name: plugin.getName(),
+        description: plugin.getDescription(),
+        version: plugin.getVersion(),
+        enabled: true
+      };
+    });
+    
+    res.status(200).json({
+      success: true,
+      plugins,
+    });
+  } catch (error: any) {
+    logger.error(`Error getting enabled plugins: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get enabled plugins',
     });
   }
 });

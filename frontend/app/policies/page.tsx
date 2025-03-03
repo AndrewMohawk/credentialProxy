@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
@@ -41,9 +41,12 @@ type Policy = {
 export default function PoliciesPage() {
   const { isAuthenticated, token, isLoading } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const credentialId = searchParams.get("credential")
   const { toast } = useToast()
   const [policies, setPolicies] = useState<Policy[]>([])
   const [isLoadingPolicies, setIsLoadingPolicies] = useState(true)
+  const [filterInfo, setFilterInfo] = useState<{ credential?: { id: string, name: string } }>({})
 
   // API URL from environment variables or default
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4242/api/v1"
@@ -55,18 +58,46 @@ export default function PoliciesPage() {
     }
   }, [isLoading, isAuthenticated, router])
 
-  // Fetch policies when component mounts
+  // Fetch policies when component mounts or when credentialId changes
   useEffect(() => {
     if (isAuthenticated) {
       fetchPolicies()
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, credentialId])
 
   // Function to fetch policies from API
   const fetchPolicies = async () => {
     setIsLoadingPolicies(true)
     try {
-      const response = await axios.get(`${API_URL}/policies`, {
+      // Add credential filter if provided
+      let url = `${API_URL}/policies`
+      if (credentialId) {
+        url += `?credentialId=${credentialId}`
+        
+        // Also fetch credential details for filter info
+        try {
+          const credResponse = await axios.get(`${API_URL}/credentials/${credentialId}`, {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          })
+          
+          if (credResponse.data.success && credResponse.data.data) {
+            setFilterInfo({
+              credential: {
+                id: credResponse.data.data.id,
+                name: credResponse.data.data.name
+              }
+            })
+          }
+        } catch (error) {
+          console.error("Error fetching credential details:", error)
+        }
+      } else {
+        setFilterInfo({})
+      }
+      
+      const response = await axios.get(url, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -124,11 +155,31 @@ export default function PoliciesPage() {
         heading="Policies" 
         text="Manage security and access policies for your credentials."
       >
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          New Policy
+        <Button asChild>
+          <Link href="/policies/new">
+            <Plus className="mr-2 h-4 w-4" /> Add Policy
+          </Link>
         </Button>
       </DashboardHeader>
+
+      {/* Show filter info if filtering by credential */}
+      {filterInfo.credential && (
+        <div className="mb-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-medium">Filtering by credential: {filterInfo.credential.name}</h3>
+                  <p className="text-sm text-muted-foreground">Showing policies for credential ID: {filterInfo.credential.id}</p>
+                </div>
+                <Button variant="outline" onClick={() => router.push('/policies')}>
+                  Clear Filter
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className="space-y-4">
         <Card>

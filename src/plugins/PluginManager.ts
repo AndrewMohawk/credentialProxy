@@ -1,255 +1,277 @@
-import fs from 'fs';
-import path from 'path';
+import { Request } from 'express';
 import { logger } from '../utils/logger';
-import { CredentialPlugin, PolicyTemplate, OperationMetadata } from './CredentialPlugin';
+import { BaseCredentialPlugin, RequestModification } from './BaseCredentialPlugin';
+import { CookiePlugin } from './credentials/CookiePlugin';
+import { ApiKeyPlugin } from './credentials/ApiKeyPlugin';
+import { OAuthPlugin } from './credentials/OAuthPlugin';
+import { prisma } from '../db/prisma';
 
 /**
  * Manages credential plugins for the application
  */
 export class PluginManager {
-  private plugins: Map<string, CredentialPlugin> = new Map();
-  private pluginDirectory: string;
-  
-  constructor(pluginDirectory: string = path.join(__dirname, 'credentials')) {
-    this.pluginDirectory = pluginDirectory;
+  private static instance: PluginManager;
+  private plugins: Map<string, BaseCredentialPlugin>;
+  private enabledPlugins: Set<string>;
+
+  private constructor() {
+    this.plugins = new Map();
+    this.enabledPlugins = new Set();
+    this.registerDefaultPlugins();
   }
-  
-  /**
-   * Load all available plugins from the plugin directory
-   */
-  public async loadPlugins(): Promise<void> {
-    logger.info(`Loading plugins from ${this.pluginDirectory}`);
+
+  public static getInstance(): PluginManager {
+    if (!PluginManager.instance) {
+      PluginManager.instance = new PluginManager();
+    }
+    return PluginManager.instance;
+  }
+
+  private async registerDefaultPlugins() {
+    try {
+      // Register built-in plugins
+      await this.registerPlugin(new CookiePlugin());
+      await this.registerPlugin(new ApiKeyPlugin());
+      await this.registerPlugin(new OAuthPlugin());
+      
+      logger.info('Default plugins registered successfully');
+    } catch (error) {
+      logger.error('Error registering default plugins:', error);
+    }
+  }
+
+  public async registerPlugin(plugin: BaseCredentialPlugin) {
+    const type = plugin.getType();
+    if (this.plugins.has(type)) {
+      throw new Error(`Plugin for type ${type} is already registered`);
+    }
+    
+    this.plugins.set(type, plugin);
     
     try {
-      // Get all subdirectories in the plugin directory
-      const pluginFolders = fs.readdirSync(this.pluginDirectory, { withFileTypes: true })
-        .filter(dirent => dirent.isDirectory())
-        .map(dirent => dirent.name);
+      // Check if the plugin exists in the database
+      // Using @ts-ignore because Prisma types don't reflect the database schema correctly
+      // @ts-ignore
+      let dbPlugin = await prisma.plugin.findUnique({
+        where: { type: type }
+      });
       
-      for (const folder of pluginFolders) {
-        try {
-          const pluginPath = path.join(this.pluginDirectory, folder);
-          
-          // Check if index.ts/js exists
-          const indexPath = this.findPluginEntryPoint(pluginPath);
-          
-          if (!indexPath) {
-            logger.warn(`No entry point found for plugin in ${folder}`);
-            continue;
+      // If not, create it with default enabled status
+      if (!dbPlugin) {
+        // @ts-ignore
+        dbPlugin = await prisma.plugin.create({
+          data: {
+            id: plugin.getId(),
+            name: plugin.getName(),
+            description: plugin.getDescription(),
+            type: type,
+            version: plugin.getVersion(),
+            enabled: true
           }
-          
-          // Dynamic import of the plugin
-          const pluginModule = await import(indexPath);
-          const plugin = pluginModule.default as CredentialPlugin;
-          
-          if (!this.validatePlugin(plugin)) {
-            logger.warn(`Plugin ${folder} does not implement the CredentialPlugin interface correctly`);
-            continue;
-          }
-          
-          // Initialize the plugin if it has an initialize method
-          if (plugin.initialize) {
-            await plugin.initialize();
-          }
-          
-          // Register the plugin
-          this.registerPlugin(plugin);
-          logger.info(`Loaded plugin: ${plugin.name} (${plugin.id}) v${plugin.version}`);
-        } catch (error: any) {
-          logger.error(`Error loading plugin from ${folder}: ${error.message}`);
-        }
+        });
+        logger.info(`Created plugin record in database: ${plugin.getName()} (${type})`);
       }
       
-      logger.info(`Loaded ${this.plugins.size} plugins successfully`);
-    } catch (error: any) {
-      logger.error(`Error loading plugins: ${error.message}`);
-      throw new Error(`Failed to load plugins: ${error.message}`);
+      // Cache the enabled status
+      if (dbPlugin.enabled) {
+        this.enabledPlugins.add(type);
+      }
+      
+      logger.info(`Registered plugin: ${plugin.getName()} (${type}), enabled: ${dbPlugin.enabled}`);
+    } catch (error) {
+      logger.error(`Error registering plugin ${plugin.getName()} in database:`, error);
+      // Add to enabled plugins by default if there's a database error
+      this.enabledPlugins.add(type);
     }
   }
-  
-  /**
-   * Register a plugin with the manager
-   */
-  public registerPlugin(plugin: CredentialPlugin): void {
-    if (this.plugins.has(plugin.id)) {
-      logger.warn(`Plugin with ID ${plugin.id} already registered. Overwriting.`);
-    }
-    
-    this.plugins.set(plugin.id, plugin);
+
+  public getPlugin(type: string): BaseCredentialPlugin | undefined {
+    return this.plugins.get(type.toUpperCase());
   }
-  
-  /**
-   * Get a plugin by ID
-   */
-  public getPlugin(id: string): CredentialPlugin | undefined {
-    return this.plugins.get(id);
-  }
-  
-  /**
-   * Get all registered plugins
-   */
-  public getAllPlugins(): CredentialPlugin[] {
+
+  public getAllPlugins(): BaseCredentialPlugin[] {
     return Array.from(this.plugins.values());
   }
-  
-  /**
-   * Find supported operations for a plugin
-   */
-  public getPluginOperations(pluginId: string): string[] {
-    const plugin = this.getPlugin(pluginId);
+
+  public getPluginTypes(): string[] {
+    return Array.from(this.plugins.keys());
+  }
+
+  public getPluginFields(type: string): any[] {
+    const plugin = this.getPlugin(type);
     if (!plugin) {
-      return [];
+      throw new Error(`No plugin found for type: ${type}`);
+    }
+    return plugin.getFields();
+  }
+
+  /**
+   * Check if a plugin is enabled
+   */
+  public isPluginEnabled(type: string): boolean {
+    return this.enabledPlugins.has(type.toUpperCase());
+  }
+
+  /**
+   * Enable a plugin
+   */
+  public async enablePlugin(type: string): Promise<boolean> {
+    const pluginType = type.toUpperCase();
+    const plugin = this.getPlugin(pluginType);
+    
+    if (!plugin) {
+      throw new Error(`No plugin found for type ${pluginType}`);
     }
     
-    return plugin.supportedOperations.map(op => op.name);
+    try {
+      // Update the database
+      // @ts-ignore
+      await prisma.plugin.update({
+        where: { type: pluginType },
+        data: { enabled: true }
+      });
+      
+      // Update the cache
+      this.enabledPlugins.add(pluginType);
+      
+      logger.info(`Enabled plugin: ${plugin.getName()} (${pluginType})`);
+      return true;
+    } catch (error) {
+      logger.error(`Error enabling plugin ${plugin.getName()} in database:`, error);
+      throw error;
+    }
   }
-  
+
   /**
-   * Check if a plugin supports a specific operation
+   * Disable a plugin
    */
-  public supportsOperation(pluginId: string, operation: string): boolean {
-    const operations = this.getPluginOperations(pluginId);
-    return operations.includes(operation);
+  public async disablePlugin(type: string): Promise<boolean> {
+    const pluginType = type.toUpperCase();
+    const plugin = this.getPlugin(pluginType);
+    
+    if (!plugin) {
+      throw new Error(`No plugin found for type ${pluginType}`);
+    }
+    
+    try {
+      // Update the database
+      // @ts-ignore
+      await prisma.plugin.update({
+        where: { type: pluginType },
+        data: { enabled: false }
+      });
+      
+      // Update the cache
+      this.enabledPlugins.delete(pluginType);
+      
+      logger.info(`Disabled plugin: ${plugin.getName()} (${pluginType})`);
+      return true;
+    } catch (error) {
+      logger.error(`Error disabling plugin ${plugin.getName()} in database:`, error);
+      throw error;
+    }
   }
-  
+
   /**
-   * Execute an operation using the appropriate plugin
+   * Get all enabled plugins
    */
-  public async executeOperation(
+  public getEnabledPlugins(): BaseCredentialPlugin[] {
+    return Array.from(this.plugins.entries())
+      .filter(([type]) => this.enabledPlugins.has(type))
+      .map(([, plugin]) => plugin);
+  }
+
+  /**
+   * Get all available plugin types for credential creation
+   */
+  public getAvailablePluginTypes(): string[] {
+    return Array.from(this.enabledPlugins);
+  }
+
+  public async validateCredential(type: string, data: any): Promise<{ isValid: boolean; error?: string }> {
+    const pluginType = type.toUpperCase();
+    const plugin = this.getPlugin(pluginType);
+    
+    if (!plugin) {
+      return { isValid: false, error: `No plugin found for type ${pluginType}` };
+    }
+    
+    if (!this.isPluginEnabled(pluginType)) {
+      return { isValid: false, error: `Plugin ${plugin.getName()} is disabled` };
+    }
+
+    return plugin.validateCredential(data);
+  }
+
+  /**
+   * Validate credential data against a plugin
+   * @param pluginId The ID of the plugin to use for validation
+   * @param data The credential data to validate
+   * @returns True if the data is valid, false otherwise
+   */
+  validateCredentialData(pluginId: string, data: Record<string, any>): boolean {
+    const pluginType = pluginId.toUpperCase();
+    const plugin = this.getPlugin(pluginType);
+    if (!plugin) {
+      throw new Error(`Plugin ${pluginId} not found`);
+    }
+    
+    return plugin.validateCredentialData(data);
+  }
+
+  /**
+   * Modify a request with credential data
+   */
+  public async modifyRequest(type: string, request: Request, data: any): Promise<RequestModification> {
+    const pluginType = type.toUpperCase();
+    const plugin = this.getPlugin(pluginType);
+    
+    if (!plugin) {
+      throw new Error(`No plugin found for type ${pluginType}`);
+    }
+    
+    if (!this.isPluginEnabled(pluginType)) {
+      throw new Error(`Plugin ${plugin.getName()} is disabled`);
+    }
+
+    return plugin.modifyRequest(request, data);
+  }
+
+  /**
+   * Execute an operation using a plugin
+   * @param pluginId The ID of the plugin to use
+   * @param operation The operation to execute
+   * @param credentialData The credential data to use
+   * @param parameters Additional parameters for the operation
+   * @returns The result of the operation
+   */
+  async executeOperation(
     pluginId: string,
     operation: string,
     credentialData: Record<string, any>,
     parameters: Record<string, any>
   ): Promise<any> {
-    const plugin = this.getPlugin(pluginId);
-    
+    const pluginType = pluginId.toUpperCase();
+    const plugin = this.getPlugin(pluginType);
     if (!plugin) {
-      throw new Error(`Plugin with ID ${pluginId} not found`);
+      throw new Error(`Plugin ${pluginId} not found`);
     }
     
-    if (!this.supportsOperation(pluginId, operation)) {
+    if (!this.isPluginEnabled(pluginType)) {
+      throw new Error(`Plugin ${plugin.getName()} is disabled`);
+    }
+    
+    if (!plugin.supportsOperation(operation)) {
       throw new Error(`Operation ${operation} not supported by plugin ${pluginId}`);
     }
     
-    // Check credential health before executing operation
-    const healthCheck = await this.checkCredentialHealth(pluginId, credentialData);
-    if (!healthCheck.isValid) {
-      throw new Error(`Credential is not valid: ${healthCheck.issues.join(', ')}`);
-    }
-    
-    return plugin.executeOperation(operation, credentialData, parameters);
+    return await plugin.executeOperation(operation, credentialData, parameters);
   }
-  
-  /**
-   * Get risk assessment for an operation
-   */
-  public getRiskAssessment(
-    pluginId: string,
-    operation: string,
-    context?: any
-  ): { score: number; baseScore: number; operation: OperationMetadata | undefined } {
-    const plugin = this.getPlugin(pluginId);
-    
-    if (!plugin) {
-      throw new Error(`Plugin with ID ${pluginId} not found`);
-    }
-    
-    const operationMetadata = plugin.supportedOperations.find(op => op.name === operation);
-    
-    if (!operationMetadata) {
-      throw new Error(`Operation ${operation} not found for plugin ${pluginId}`);
-    }
-    
-    const score = plugin.riskAssessment.calculateRiskForOperation(operation, context);
-    
-    return {
-      score,
-      baseScore: plugin.riskAssessment.baseScore,
-      operation: operationMetadata
-    };
-  }
-  
-  /**
-   * Check the health of a credential
-   */
-  public async checkCredentialHealth(
-    pluginId: string,
-    credentialData: Record<string, any>
-  ): Promise<{
-    isValid: boolean;
-    expiresAt?: Date;
-    issues: string[];
-    recommendations: string[];
-    lastChecked: Date;
-  }> {
-    const plugin = this.getPlugin(pluginId);
-    
-    if (!plugin) {
-      throw new Error(`Plugin with ID ${pluginId} not found`);
-    }
-    
-    if (plugin.checkCredentialHealth) {
-      return plugin.checkCredentialHealth(credentialData);
-    }
-    
-    // If the plugin doesn't implement checkCredentialHealth, 
-    // just validate the credential data
-    const validationResult = await plugin.validateCredential(credentialData);
-    
-    return {
-      isValid: !validationResult,
-      issues: validationResult ? [validationResult] : [],
-      recommendations: [],
-      lastChecked: new Date()
-    };
-  }
-  
-  /**
-   * Get recommended policy templates for a plugin
-   */
-  public getPolicyTemplates(pluginId: string): PolicyTemplate[] {
-    const plugin = this.getPlugin(pluginId);
-    
-    if (!plugin) {
-      throw new Error(`Plugin with ID ${pluginId} not found`);
-    }
-    
-    return plugin.policyTemplates || [];
-  }
-  
-  /**
-   * Find the entry point file for a plugin
-   */
-  private findPluginEntryPoint(pluginPath: string): string | null {
-    const possibleEntryPoints = ['index.js', 'index.ts'];
-    
-    for (const entryPoint of possibleEntryPoints) {
-      const fullPath = path.join(pluginPath, entryPoint);
-      if (fs.existsSync(fullPath)) {
-        return fullPath;
-      }
-    }
-    
-    return null;
-  }
-  
-  /**
-   * Validate that a plugin implements the CredentialPlugin interface
-   */
-  private validatePlugin(plugin: any): plugin is CredentialPlugin {
-    return (
-      plugin &&
-      typeof plugin.id === 'string' &&
-      typeof plugin.name === 'string' &&
-      typeof plugin.description === 'string' &&
-      typeof plugin.version === 'string' &&
-      Array.isArray(plugin.supportedOperations) &&
-      Array.isArray(plugin.supportedPolicies) &&
-      plugin.riskAssessment && 
-      typeof plugin.riskAssessment.baseScore === 'number' &&
-      typeof plugin.riskAssessment.calculateRiskForOperation === 'function' &&
-      typeof plugin.validateCredential === 'function' &&
-      typeof plugin.executeOperation === 'function'
-    );
-  }
+}
+
+/**
+ * Get the singleton instance of the PluginManager
+ */
+export function getPluginManager(): PluginManager {
+  return PluginManager.getInstance();
 } 

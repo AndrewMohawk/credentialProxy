@@ -33,8 +33,15 @@ export const executeOperation = async (
     // This is needed for backward compatibility with existing credentials
     const pluginId = mapCredentialTypeToPluginId(credentialType);
     
-    // Execute the operation using the appropriate plugin
+    // Get the plugin manager
     const pluginManager = getPluginManager();
+    
+    // Check if the plugin is enabled
+    if (!pluginManager.isPluginEnabled(pluginId)) {
+      throw new Error(`Plugin ${pluginId} is disabled or not available`);
+    }
+    
+    // Execute the operation using the appropriate plugin
     return await pluginManager.executeOperation(
       pluginId,
       operation,
@@ -51,12 +58,14 @@ export const executeOperation = async (
  * Map a credential type from the database to a plugin ID
  * This is needed for backward compatibility with existing credentials
  */
-function mapCredentialTypeToPluginId(credentialType: string): string {
+export function mapCredentialTypeToPluginId(credentialType: string): string {
   switch (credentialType) {
     case 'API_KEY':
       return 'api-key';
     case 'OAUTH':
       return 'oauth';
+    case 'COOKIE':
+      return 'cookie';
     case 'ETHEREUM_KEY':
       return 'ethereum';
     case 'DATABASE':

@@ -1,10 +1,13 @@
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../utils/logger';
 
-// Create a singleton instance of PrismaClient
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
+// Define the extended client type that includes Plugin
+declare global {
+  var prisma: PrismaClient | undefined;
+}
 
-export const prisma = globalForPrisma.prisma || new PrismaClient({
+// Create a singleton instance of PrismaClient
+const prisma = global.prisma || new PrismaClient({
   log: [
     {
       emit: 'event',
@@ -24,6 +27,9 @@ export const prisma = globalForPrisma.prisma || new PrismaClient({
     },
   ],
 });
+
+// Re-export types from Prisma
+export * from '@prisma/client';
 
 // Define Prisma event types
 interface PrismaQueryEvent {
@@ -55,5 +61,7 @@ prisma.$on('error', (e: PrismaErrorEvent) => {
 
 // Add to global in development to prevent multiple instances during hot reloading
 if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
-} 
+  global.prisma = prisma;
+}
+
+export { prisma }; 

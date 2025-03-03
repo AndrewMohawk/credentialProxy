@@ -10,6 +10,33 @@ import { config } from '../../config';
 const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV !== 'production' ? 'dev_jwt_secret_change_in_production' : '');
 const JWT_EXPIRATION = process.env.JWT_EXPIRATION || '24h';
 
+// Audit log constants
+enum AuditType {
+  USER_REGISTERED = 'USER_REGISTERED',
+  USER_LOGIN = 'USER_LOGIN',
+  USER_LOGIN_FAILED = 'USER_LOGIN_FAILED',
+  USER_LOGOUT = 'USER_LOGOUT'
+}
+
+enum AuthMethod {
+  PASSWORD = 'PASSWORD',
+  PASSKEY = 'PASSKEY',
+  EXPLICIT = 'EXPLICIT'
+}
+
+/**
+ * Create an audit log entry
+ */
+async function createAuditLog(type: AuditType, details: any, userId?: string) {
+  await prisma.auditEvent.create({
+    data: {
+      type,
+      details,
+      userId
+    }
+  });
+}
+
 /**
  * Generate a JWT token for a user
  */
@@ -31,9 +58,9 @@ export const registerUser = async (req: Request, res: Response) => {
 
     // Check for required fields
     if (!username || !email || !password) {
-      return res.status(500).json({
+      return res.status(400).json({
         success: false,
-        error: 'Server error during registration. Please try again later.'
+        error: 'Username, email, and password are required'
       });
     }
 
@@ -48,7 +75,7 @@ export const registerUser = async (req: Request, res: Response) => {
     });
 
     if (existingUser) {
-      return res.status(500).json({
+      return res.status(409).json({
         success: false,
         error: 'User with this username or email already exists'
       });
@@ -71,13 +98,15 @@ export const registerUser = async (req: Request, res: Response) => {
     const token = generateToken(user);
 
     // Log the registration
-    await prisma.auditEvent.create({
-      data: {
-        type: 'USER_REGISTERED',
-        userId: user.id,
-        details: { username, email }
-      }
-    });
+    await createAuditLog(
+      AuditType.USER_REGISTERED,
+      {
+        username,
+        email,
+        method: AuthMethod.PASSWORD
+      },
+      user.id
+    );
 
     return res.status(201).json({
       success: true,
@@ -97,23 +126,29 @@ export const registerUser = async (req: Request, res: Response) => {
  */
 export const login = async (req: Request, res: Response) => {
   try {
-    const { username, password } = req.body;
+    const { username, usernameOrEmail, password } = req.body;
+    const loginIdentifier = username || usernameOrEmail;
 
     // Check for required fields
-    if (!username || !password) {
-      return res.status(500).json({
+    if (!loginIdentifier || !password) {
+      return res.status(400).json({
         success: false,
-        error: 'Server error during login. Please try again later.'
+        error: 'Username/email and password are required'
       });
     }
 
-    // Find user by username
-    const user = await prisma.user.findUnique({
-      where: { username }
+    // Find user by username or email
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { username: loginIdentifier },
+          { email: loginIdentifier }
+        ]
+      }
     });
 
     if (!user || !user.passwordHash) {
-      return res.status(500).json({
+      return res.status(401).json({
         success: false,
         error: 'Invalid username or password'
       });
@@ -143,7 +178,18 @@ export const login = async (req: Request, res: Response) => {
     }
 
     if (!isMatch) {
-      return res.status(500).json({
+      // Log failed login attempt
+      await createAuditLog(
+        AuditType.USER_LOGIN_FAILED,
+        {
+          username: user.username,
+          method: AuthMethod.PASSWORD,
+          reason: 'INVALID_PASSWORD'
+        },
+        user.id
+      );
+
+      return res.status(401).json({
         success: false,
         error: 'Invalid username or password'
       });
@@ -152,17 +198,15 @@ export const login = async (req: Request, res: Response) => {
     // Generate token
     const token = generateToken(user);
 
-    // Create audit log entry for successful login
-    await prisma.auditEvent.create({
-      data: {
-        type: 'USER_LOGIN',
-        details: {
-          username: user.username,
-          method: 'password'
-        },
-        userId: user.id
-      }
-    });
+    // Log successful login
+    await createAuditLog(
+      AuditType.USER_LOGIN,
+      {
+        username: user.username,
+        method: AuthMethod.PASSWORD
+      },
+      user.id
+    );
 
     return res.status(200).json({
       success: true,
@@ -172,7 +216,7 @@ export const login = async (req: Request, res: Response) => {
     logger.error('Error in login:', error);
     return res.status(500).json({
       success: false,
-      error: 'Server error'
+      error: 'Server error during login. Please try again later.'
     });
   }
 };
@@ -195,17 +239,14 @@ export async function logout(req: Request, res: Response): Promise<void> {
     }
     
     // Log the logout event
-    await prisma.auditEvent.create({
-      data: {
-        type: 'AUTH',
-        details: {
-          action: 'LOGOUT',
-          username,
-          method: 'explicit'
-        },
-        userId
-      }
-    });
+    await createAuditLog(
+      AuditType.USER_LOGOUT,
+      {
+        username,
+        method: AuthMethod.EXPLICIT
+      },
+      userId
+    );
 
     // Blocklist the token if it exists
     if (token) {

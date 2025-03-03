@@ -1,20 +1,21 @@
+export * from './BaseCredentialPlugin';
+export * from './PluginManager';
+export * from './credentials/CookiePlugin';
+export * from './credentials/ApiKeyPlugin';
+export * from './credentials/OAuthPlugin';
+
 import { PluginManager } from './PluginManager';
-import { CookiePlugin } from './CookiePlugin';
 import { logger } from '../utils/logger';
 
-// Create the plugin manager instance
-const pluginManager = new PluginManager();
+// Get the plugin manager instance
+const pluginManager = PluginManager.getInstance();
 
 /**
  * Initialize all plugins
  */
 export const initializePlugins = async (): Promise<void> => {
   try {
-    // Register built-in plugins
-    // Uncomment when ApiKeyPlugin is implemented
-    // pluginManager.registerPlugin(new ApiKeyPlugin());
-    pluginManager.registerPlugin(new CookiePlugin());
-    
+    // Plugins are already registered in the PluginManager constructor
     logger.info(`Initialized ${pluginManager.getAllPlugins().length} plugins`);
   } catch (error: any) {
     logger.error(`Error initializing plugins: ${error.message}`);
@@ -22,12 +23,10 @@ export const initializePlugins = async (): Promise<void> => {
   }
 };
 
-/**
- * Get the plugin manager instance
- */
-export const getPluginManager = (): PluginManager => {
-  return pluginManager;
-};
+// Export a function to get the plugin manager instance
+export function getPluginManager(): PluginManager {
+  return PluginManager.getInstance();
+}
 
 // Re-export the plugin interfaces
 export * from './CredentialPlugin'; 

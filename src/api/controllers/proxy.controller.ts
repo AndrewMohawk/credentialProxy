@@ -5,6 +5,8 @@ import { prisma } from '../../db/prisma';
 import { logger } from '../../utils/logger';
 import { evaluateRequest, Policy, PolicyStatus } from '../../core/policies/policyEngine';
 import { queueProxyRequest } from '../../services/proxyQueueProcessor';
+import { getPluginManager } from '../../plugins';
+import { mapCredentialTypeToPluginId } from '../../services/operationExecutor';
 
 /**
  * Handle a proxy request from a third-party application
@@ -42,6 +44,38 @@ export const handleProxyRequest = async (req: Request, res: Response) => {
       return res.status(404).json({
         success: false,
         error: 'Application not found',
+      });
+    }
+    
+    // Get the credential
+    const credential = await prisma.credential.findUnique({
+      where: { id: credentialId },
+    });
+    
+    if (!credential) {
+      return res.status(404).json({
+        success: false,
+        error: 'Credential not found',
+      });
+    }
+    
+    // Check if the plugin for this credential type is enabled
+    try {
+      const pluginManager = getPluginManager();
+      const pluginId = mapCredentialTypeToPluginId(credential.type);
+      
+      if (!pluginManager.isPluginEnabled(pluginId)) {
+        logger.warn(`Plugin ${pluginId} is disabled for credential ${credentialId}`);
+        return res.status(400).json({
+          success: false,
+          error: `Plugin for credential type ${credential.type} is disabled or not available`,
+        });
+      }
+    } catch (error: any) {
+      logger.error(`Error checking plugin status: ${error.message}`);
+      return res.status(400).json({
+        success: false,
+        error: `Unsupported credential type: ${credential.type}`,
       });
     }
     

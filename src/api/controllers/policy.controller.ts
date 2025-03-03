@@ -18,14 +18,28 @@ export const getAllPolicies = async (req: Request, res: Response) => {
     }
 
     const userId = req.user.id;
+    const { credentialId, applicationId } = req.query;
+
+    // Build the where clause
+    const whereClause: any = {
+      credential: {
+        userId: userId
+      }
+    };
+
+    // Add credential filter if provided
+    if (credentialId) {
+      whereClause.credentialId = credentialId as string;
+    }
+
+    // Add application filter if provided
+    if (applicationId) {
+      whereClause.applicationId = applicationId as string;
+    }
 
     // Get policies associated with the user's credentials
     const policies = await prisma.policy.findMany({
-      where: {
-        credential: {
-          userId: userId
-        }
-      },
+      where: whereClause,
       include: {
         credential: {
           select: {

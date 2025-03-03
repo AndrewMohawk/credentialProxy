@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "A secure credential management system that allows third-party applications to perform operations using credentials without ever seeing the actual credentials.",
   "main": "dist/index.js",
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
   "scripts": {
     "build": "tsc && cd frontend && npm run build",
     "build:all": "npm run db:up && npm run prisma:generate && npm run prisma:migrate && npm run build && mkdir -p dist/public",
@@ -19,7 +22,8 @@
     "test:coverage": "jest --coverage",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "prisma:seed": "prisma db seed"
   },
   "keywords": [
     "credentials",

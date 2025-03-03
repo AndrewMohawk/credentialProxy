@@ -1,129 +1,149 @@
-import { CredentialPlugin, OperationMetadata, PolicyConfig, RiskAssessment } from './CredentialPlugin';
-import { logger } from '../utils/logger';
+import { Request } from 'express';
 
 /**
  * Abstract base class for credential plugins
  * Implements common functionality to make it easier to create new plugins
  */
-export abstract class BaseCredentialPlugin implements CredentialPlugin {
-  abstract id: string;
-  abstract name: string;
-  abstract description: string;
-  abstract version: string;
-  abstract credentialSchema: Record<string, any>;
-  abstract supportedOperations: OperationMetadata[];
-  abstract supportedPolicies: PolicyConfig[];
-  abstract riskAssessment: RiskAssessment;
-  
+export interface CredentialData {
+  [key: string]: any;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  error?: string;
+}
+
+export interface CredentialPluginConfig {
+  name: string;
+  type: string;
+  fields: CredentialField[];
+}
+
+export interface CredentialField {
+  name: string;
+  label: string;
+  type: string;
+  required: boolean;
+  description?: string;
+  options?: string[];
+}
+
+export interface RequestModification {
+  headers?: Record<string, string>;
+  query?: Record<string, string>;
+  body?: Record<string, any>;
+  cookies?: Record<string, string>;
+}
+
+export interface PluginMetadata {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+  author: string;
+  website?: string;
+  repository?: string;
+}
+
+export abstract class BaseCredentialPlugin {
+  abstract readonly config: CredentialPluginConfig;
+  abstract readonly metadata: PluginMetadata;
+
   /**
-   * Get an operation by name
+   * Validate credential data before saving
    */
-  protected getOperation(name: string): OperationMetadata | undefined {
-    return this.supportedOperations.find(op => op.name === name);
-  }
-  
+  abstract validateCredential(data: CredentialData): Promise<ValidationResult>;
+
   /**
-   * Check if the plugin supports a specific operation
+   * Modify a request with the credential data
    */
-  public supportsOperation(operation: string): boolean {
-    return this.supportedOperations.some(op => op.name === operation);
-  }
-  
+  abstract modifyRequest(request: Request, data: CredentialData): Promise<RequestModification>;
+
   /**
-   * Validate that an operation has all required parameters
+   * Validate credential data structure
+   * This is a simpler version of validateCredential that returns a boolean
+   * @param data The credential data to validate
+   * @returns True if the data is valid, false otherwise
    */
-  protected validateOperationParameters(
-    operation: string,
-    parameters: Record<string, any>
-  ): string | null {
-    const opMetadata = this.getOperation(operation);
+  validateCredentialData(data: CredentialData): boolean {
+    // Default implementation checks if all required fields are present
+    if (!data) return false;
     
-    if (!opMetadata) {
-      return `Operation ${operation} is not supported by this plugin`;
-    }
-    
-    // Check if all required parameters are present
-    for (const param of opMetadata.requiredParams) {
-      if (parameters[param] === undefined) {
-        return `Missing required parameter: ${param}`;
-      }
-    }
-    
-    return null;
+    const requiredFields = this.getFields().filter(field => field.required);
+    return requiredFields.every(field => 
+      data[field.name] !== undefined && 
+      data[field.name] !== null && 
+      data[field.name] !== ''
+    );
   }
-  
+
   /**
-   * Validate credential data against the schema
-   * Default implementation performs basic validation based on required fields
-   * Plugins should override this method if they need more complex validation
+   * Check if this plugin supports a specific operation
+   * @param operation The operation to check
+   * @returns True if the operation is supported, false otherwise
    */
-  public async validateCredential(credentialData: Record<string, any>): Promise<string | null> {
-    try {
-      // Simple validation based on required fields in schema
-      for (const [key, config] of Object.entries(this.credentialSchema)) {
-        if (config.required && credentialData[key] === undefined) {
-          return `Missing required field: ${key}`;
-        }
-      }
-      
-      return null;
-    } catch (error: any) {
-      logger.error(`Error validating credential: ${error.message}`);
-      return `Validation error: ${error.message}`;
-    }
+  supportsOperation(operation: string): boolean {
+    // Default implementation doesn't support any operations
+    // Override this in subclasses to support specific operations
+    return false;
   }
-  
+
   /**
    * Execute an operation using this plugin
-   * This is the main method that needs to be implemented by concrete plugins
+   * @param operation The operation to execute
+   * @param data The credential data to use
+   * @param parameters Additional parameters for the operation
+   * @returns The result of the operation
    */
-  public abstract executeOperation(
-    operation: string,
-    credentialData: Record<string, any>,
+  async executeOperation(
+    operation: string, 
+    data: CredentialData, 
     parameters: Record<string, any>
-  ): Promise<any>;
-  
-  /**
-   * Basic implementation of credential health check
-   * Plugins should override this for more specific health checks
-   */
-  public async checkCredentialHealth(
-    credentialData: Record<string, any>
-  ): Promise<{
-    isValid: boolean;
-    expiresAt?: Date;
-    issues: string[];
-    recommendations: string[];
-    lastChecked: Date;
-  }> {
-    try {
-      // Perform basic validation
-      const validationResult = await this.validateCredential(credentialData);
-      
-      return {
-        isValid: !validationResult, 
-        issues: validationResult ? [validationResult] : [],
-        recommendations: validationResult ? ['Update the credential with valid information'] : [],
-        lastChecked: new Date()
-      };
-    } catch (error: any) {
-      logger.error(`Error checking credential health: ${error.message}`);
-      return {
-        isValid: false,
-        issues: [`Error checking credential health: ${error.message}`],
-        recommendations: ['Try again later or contact support'],
-        lastChecked: new Date()
-      };
-    }
+  ): Promise<any> {
+    // Default implementation throws an error
+    // Override this in subclasses to support specific operations
+    throw new Error(`Operation ${operation} not supported by plugin ${this.getId()}`);
   }
-  
+
   /**
-   * Initialize the plugin
-   * Default implementation does nothing
-   * Plugins can override this for any initialization logic
+   * Get fields required for this credential type
    */
-  public async initialize(): Promise<void> {
-    // Default implementation does nothing
-    logger.debug(`Initializing plugin: ${this.name}`);
+  getFields(): CredentialField[] {
+    return this.config.fields;
+  }
+
+  /**
+   * Get the credential type
+   */
+  getType(): string {
+    return this.config.type;
+  }
+
+  /**
+   * Get the plugin name
+   */
+  getName(): string {
+    return this.metadata.name;
+  }
+
+  /**
+   * Get plugin ID
+   */
+  getId(): string {
+    return this.metadata.id;
+  }
+
+  /**
+   * Get plugin description
+   */
+  getDescription(): string {
+    return this.metadata.description;
+  }
+
+  /**
+   * Get plugin version
+   */
+  getVersion(): string {
+    return this.metadata.version;
   }
 } 

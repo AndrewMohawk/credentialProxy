@@ -11,53 +11,55 @@ datasource db {
 
 // User model for administrators
 model User {
-  id            String         @id @default(uuid())
-  username      String         @unique
-  email         String         @unique
-  passwordHash  String?
+  id              String                 @id @default(uuid())
+  username        String                 @unique
+  email           String                 @unique
+  passwordHash    String?
   // For passkey authentication
-  challenge     String?
-  credentials   Credential[]
-  passkeys      Passkey[]
-  auditEvents   AuditEvent[]
+  challenge       String?
+  credentials     Credential[]
+  passkeys        Passkey[]
+  auditEvents     AuditEvent[]
   preApprovedKeys PreApprovedPublicKey[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
 }
 
 // Passkey authentication credentials
 model Passkey {
-  id                  String    @id
-  userId              String
-  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  publicKey           Bytes
-  counter             BigInt
-  credentialBackedUp  Boolean   @default(false)
-  transports          String[]
-  createdAt           DateTime  @default(now())
+  id                 String   @id
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  publicKey          Bytes
+  counter            BigInt
+  credentialBackedUp Boolean  @default(false)
+  transports         String[]
+  createdAt          DateTime @default(now())
 }
 
 // Credential types
 enum CredentialType {
-  OAUTH
+  COOKIE
   API_KEY
+  OAUTH
   ETHEREUM_KEY
   OTHER
 }
 
 // Credential model
 model Credential {
-  id              String         @id @default(uuid())
-  name            String
-  type            CredentialType
-  data            Json           // Encrypted credential data
-  userId          String
-  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  policies        Policy[]
-  applications    Application[]
-  auditEvents     AuditEvent[]
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id           String         @id @default(uuid())
+  name         String
+  type         CredentialType
+  data         Json // Encrypted credential data
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  policies     Policy[]
+  applications Application[]
+  auditEvents  AuditEvent[]
+  isEnabled    Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 }
 
 // Policy types
@@ -72,67 +74,67 @@ enum PolicyType {
 
 // Policy model
 model Policy {
-  id               String       @id @default(uuid())
-  name             String
-  type             PolicyType
-  configuration    Json         // Policy-specific configuration
-  credentialId     String
-  credential       Credential   @relation(fields: [credentialId], references: [id], onDelete: Cascade)
-  applicationId    String?
-  application      Application? @relation(fields: [applicationId], references: [id])
+  id            String       @id @default(uuid())
+  name          String
+  type          PolicyType
+  configuration Json // Policy-specific configuration
+  credentialId  String
+  credential    Credential   @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  applicationId String?
+  application   Application? @relation(fields: [applicationId], references: [id])
   // For COUNT_BASED policies
-  currentCount     Int?         @default(0)
-  maxCount         Int?
+  currentCount  Int?         @default(0)
+  maxCount      Int?
   // For TIME_BASED policies
-  startTime        DateTime?
-  endTime          DateTime?
+  startTime     DateTime?
+  endTime       DateTime?
   // For PATTERN_MATCH policies
-  pattern          String?
+  pattern       String?
   // Common fields
-  auditEvents      AuditEvent[]
-  isEnabled        Boolean      @default(true)
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  auditEvents   AuditEvent[]
+  isEnabled     Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }
 
 // Application model for third-party apps
 model Application {
-  id               String          @id @default(uuid())
-  name             String
-  publicKey        String          // For verifying request signatures
-  status           ApplicationStatus @default(PENDING)
-  credentials      Credential[]
-  policies         Policy[]
-  auditEvents      AuditEvent[]
-  secret           String?         // Optional secret key, visible only during application creation
-  description      String?
-  callbackUrl      String?         // URL to notify the application of events
-  registrationIp   String?         // IP from which the application was registered
-  lastAccessedAt   DateTime?       // When the application last made a request
-  revokedAt        DateTime?       // When the application was revoked
-  revokedReason    String?         // Reason for revocation
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  id             String            @id @default(uuid())
+  name           String
+  publicKey      String // For verifying request signatures
+  status         ApplicationStatus @default(PENDING)
+  credentials    Credential[]
+  policies       Policy[]
+  auditEvents    AuditEvent[]
+  secret         String? // Optional secret key, visible only during application creation
+  description    String?
+  callbackUrl    String? // URL to notify the application of events
+  registrationIp String? // IP from which the application was registered
+  lastAccessedAt DateTime? // When the application last made a request
+  revokedAt      DateTime? // When the application was revoked
+  revokedReason  String? // Reason for revocation
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 }
 
 // Pre-approved public keys for automatic application approval
 model PreApprovedPublicKey {
-  id               String    @id @default(uuid())
-  publicKey        String    @unique    // The public key that will be auto-approved
-  description      String?   // Description of what application this key is for
-  createdById      String    // Admin who created this pre-approval
-  createdBy        User      @relation(fields: [createdById], references: [id])
-  used             Boolean   @default(false)  // Whether this key has been used
-  usedByApplication String?  // ID of the application that used this key
-  createdAt        DateTime  @default(now())
-  expiresAt        DateTime? // Optional expiration date for the pre-approval
+  id                String    @id @default(uuid())
+  publicKey         String    @unique // The public key that will be auto-approved
+  description       String? // Description of what application this key is for
+  createdById       String // Admin who created this pre-approval
+  createdBy         User      @relation(fields: [createdById], references: [id])
+  used              Boolean   @default(false) // Whether this key has been used
+  usedByApplication String? // ID of the application that used this key
+  createdAt         DateTime  @default(now())
+  expiresAt         DateTime? // Optional expiration date for the pre-approval
 }
 
 // Status of an application
 enum ApplicationStatus {
-  ACTIVE    // Application is active and can use credentials
-  PENDING   // Application is pending approval
-  REVOKED   // Application has been revoked
+  ACTIVE // Application is active and can use credentials
+  PENDING // Application is pending approval
+  REVOKED // Application has been revoked
 }
 
 // Request status for audit logging
@@ -146,34 +148,48 @@ enum RequestStatus {
 
 // Audit log for all actions
 model AuditEvent {
-  id               String        @id @default(uuid())
-  type             String        // Type of event (e.g., "credential_access", "policy_update")
-  details          Json          // Event-specific details
-  userId           String?
-  user             User?         @relation(fields: [userId], references: [id])
-  credentialId     String?
-  credential       Credential?   @relation(fields: [credentialId], references: [id])
-  applicationId    String?
-  application      Application?  @relation(fields: [applicationId], references: [id])
-  policyId         String?
-  policy           Policy?       @relation(fields: [policyId], references: [id])
-  requestId        String?       // For tracking request flow
-  requestStatus    RequestStatus?
+  id            String         @id @default(uuid())
+  type          String // Type of event (e.g., "credential_access", "policy_update")
+  details       Json // Event-specific details
+  userId        String?
+  user          User?          @relation(fields: [userId], references: [id])
+  credentialId  String?
+  credential    Credential?    @relation(fields: [credentialId], references: [id])
+  applicationId String?
+  application   Application?   @relation(fields: [applicationId], references: [id])
+  policyId      String?
+  policy        Policy?        @relation(fields: [policyId], references: [id])
+  requestId     String? // For tracking request flow
+  requestStatus RequestStatus?
   // For storing pending requests that need approval
-  requestData      Json?
-  responseData     Json?
-  createdAt        DateTime      @default(now())
+  requestData   Json?
+  responseData  Json?
+  createdAt     DateTime       @default(now())
 }
 
 // PendingRequest model for requests requiring approval
 model PendingRequest {
-  id               String        @id @default(uuid())
-  requestData      Json          // The original request data
-  policyId         String
-  applicationId    String
-  credentialId     String
-  status           RequestStatus @default(PENDING)
-  expiresAt        DateTime      // When the request times out
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-} 
+  id            String        @id @default(uuid())
+  requestData   Json // The original request data
+  policyId      String
+  applicationId String
+  credentialId  String
+  status        RequestStatus @default(PENDING)
+  expiresAt     DateTime // When the request times out
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+// Plugin model for managing credential plugins
+model Plugin {
+  id          String    @id
+  name        String
+  description String
+  type        String    @unique // Matches the plugin type in code (e.g., "COOKIE", "API_KEY")
+  version     String
+  enabled     Boolean   @default(true)
+  configData  Json? // Optional plugin-specific configuration
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
