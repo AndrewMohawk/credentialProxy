@@ -60,7 +60,6 @@ export function PolicyFlowVisualization() {
       icon: isDark ? "text-green-400" : "text-green-500"
     },
     fastPath: {
-      line: isDark ? "from-red-800 to-red-900" : "from-red-200 to-red-500",
       textBg: isDark ? "bg-red-900/20" : "bg-red-50"
     }
   }
@@ -71,16 +70,6 @@ export function PolicyFlowVisualization() {
       <div className="text-center mb-4">
         <h3 className={`text-base font-semibold ${colors.text.title}`}>Policy Evaluation Flow</h3>
         <p className={`text-sm ${colors.text.description}`}>How credential requests are processed</p>
-      </div>
-
-      {/* Fast path visual indicator - positioned on left without overlapping icons */}
-      <div className="absolute left-0 top-[130px] bottom-[80px] w-3 flex items-center z-0">
-        <div 
-          className={`h-full w-[2px] rounded-full bg-gradient-to-b ${colors.fastPath.line} mx-auto transition-opacity duration-500`}
-          style={{
-            opacity: (hoveredSection === 'global' || hoveredSection === 'plugin' || hoveredSection === 'credential') ? 0.7 : 0,
-          }}
-        />
       </div>
 
       {/* Incoming Request */}

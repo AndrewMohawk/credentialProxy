@@ -32,7 +32,7 @@ export const configureMiddleware = (app: Express): void => {
   // CORS middleware
   // TODO: Remove this when we have a proper frontend URL
   app.use(cors({
-    origin: ['http://localhost:3000', config.app.frontendUrl].filter(Boolean),
+    origin: [`http://${config.app.frontendHost}:${config.app.frontendPort}`, config.app.frontendUrl].filter(Boolean),
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,

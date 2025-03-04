@@ -24,7 +24,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: `http://localhost:${config.app.port}`,
+        url: `http://${config.app.host}:${config.app.port}`,
         description: 'Development Server',
       },
       {

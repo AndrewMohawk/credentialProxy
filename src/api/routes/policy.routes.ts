@@ -16,6 +16,7 @@ router.get('/', authenticateJWT, policyController.getAllPolicies);
 router.get('/:id', authenticateJWT, policyController.getPolicyById);
 router.post('/', authenticateJWT, policyController.createPolicy);
 router.put('/:id', authenticateJWT, policyController.updatePolicy);
+router.put('/:id/status', authenticateJWT, policyController.updatePolicyStatus);
 router.delete('/:id', authenticateJWT, policyController.deletePolicy);
 
 // Test policies (simulate policy evaluation)

@@ -15,6 +15,8 @@ Key features:
 - Queue-based asynchronous processing for reliability
 - Self-registration for third-party applications
 - Credential revocation capabilities for applications
+- WebAuthn/Passkey authentication support
+- Enhanced policy system with templates and advanced policy types
 
 ## Architecture
 
@@ -26,6 +28,136 @@ The Credential Proxy is built with the following components:
 - **Queue System**: BullMQ with Redis for reliable asynchronous processing
 - **Database**: PostgreSQL with Prisma ORM for data storage
 - **Monitoring**: Prometheus and Grafana for metrics and monitoring
+- **Frontend**: Next.js application with Shadcn/UI and Tailwind CSS
+
+## Project Structure
+
+```
+credential-proxy/
+├── prisma/                # Database schema and migrations
+├── src/
+│   ├── api/               # API routes and controllers
+│   ├── app/               # Express app setup
+│   ├── config/            # Application configuration
+│   ├── core/              # Core business logic
+│   ├── db/                # Database connection
+│   ├── docs/              # API documentation
+│   ├── middleware/        # Express middleware
+│   ├── monitoring/        # Prometheus metrics
+│   ├── plugins/           # Credential plugins
+│   ├── public/            # Static assets
+│   ├── services/          # Core services
+│   ├── types/             # TypeScript types
+│   ├── utils/             # Utility functions
+│   ├── views/             # Server-side views
+│   ├── index.ts           # Main entry point
+│   └── server.ts          # Server setup
+├── frontend/              # Next.js frontend application
+├── docker-compose.yml     # Docker configuration
+├── Dockerfile             # Container definition
+└── prometheus.yml         # Prometheus configuration
+```
+
+## Prerequisites
+
+- Node.js 18+
+- PostgreSQL 14+
+- Redis 6+
+- Domain with HTTPS for WebAuthn/passkey support in production
+
+## Setup and Installation
+
+### Local Development
+
+1. Clone the repository:
+   ```
+   git clone https://github.com/yourusername/credential-proxy.git
+   cd credential-proxy
+   ```
+
+2. Install dependencies:
+   ```
+   npm install
+   cd frontend && npm install && cd ..
+   ```
+
+3. Set up environment variables:
+   ```
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+4. Set up the database:
+   ```
+   # Start development database and Redis
+   npm run db:up
+   
+   # Generate Prisma client
+   npm run prisma:generate
+   
+   # Run migrations
+   npm run prisma:migrate
+   
+   # Seed the database (optional)
+   npm run prisma:seed
+   ```
+
+5. Start the development servers:
+   ```
+   npm run dev
+   ```
+
+This will start both the backend server and the frontend development server concurrently.
+
+### Docker Setup
+
+You can run the application using Docker Compose:
+
+```
+docker-compose up -d
+```
+
+This will start the following services:
+- Credential Proxy API and Frontend
+- PostgreSQL database
+- Redis
+- Prometheus
+- Grafana
+
+### WebAuthn/Passkey Setup
+
+For WebAuthn/passkey authentication, you need to:
+
+1. Configure environment variables:
+   ```
+   PASSKEY_RP_ID=your-domain.com
+   PASSKEY_RP_NAME=Credential Proxy
+   PASSKEY_ORIGIN=https://your-domain.com
+   ```
+
+2. For local development, you can use:
+   - Update your hosts file to point your domain to 127.0.0.1
+   - Use a reverse proxy with a valid SSL certificate
+
+## Environment Variables
+
+Key environment variables include:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| PORT | Backend port | 4242 |
+| HOST | Backend host | localhost |
+| FRONTEND_PORT | Frontend port | 3000 |
+| FRONTEND_HOST | Frontend host | localhost |
+| NODE_ENV | Environment | development |
+| DATABASE_URL | PostgreSQL connection string | - |
+| REDIS_URL | Redis connection string | - |
+| JWT_SECRET | Secret for JWT tokens | - |
+| ENCRYPTION_KEY | Key for credential encryption | - |
+| PASSKEY_RP_ID | WebAuthn Relying Party ID | - |
+| PASSKEY_ORIGIN | WebAuthn origin | - |
+
+See `.env.example` for a complete list of environment variables.
 
 ## Application Registration
 
@@ -259,91 +391,50 @@ function checkRequestStatus(requestId) {
 4. The Credential Proxy verifies the signature, evaluates policies, and if approved, performs the operation using the stored credential.
 5. The third-party application receives the result without ever seeing the actual credential.
 
-## Setup and Installation
+## Policy System
 
-### Prerequisites
+The Credential Proxy includes a comprehensive policy system that controls what operations applications can perform with credentials.
 
-- Node.js 18+
-- PostgreSQL 14+
-- Redis 6+
+### Policy Types
 
-### Installation
+The system supports various policy types:
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/credential-proxy.git
-   cd credential-proxy
-   ```
+1. **Basic Policies**
+   - Allow List: Explicitly allow specific operations
+   - Deny List: Explicitly deny specific operations
+   - Time-Based: Restrict operations to specific time windows
+   - Count-Based: Limit the number of operations within a time period
+   - Manual Approval: Require administrator approval for operations
+   - Pattern Match: Control operations based on parameter patterns
 
-2. Install dependencies:
-   ```
-   npm install
-   ```
+2. **Advanced Policies** (Added in latest update)
+   - Rate Limiting: Limit the frequency of requests within a time window
+   - IP Restriction: Control access based on IP addresses or CIDR ranges
+   - Usage Threshold: Set limits on various usage metrics like request count or data transferred
+   - Context-Aware: Evaluate policies based on request context and conditions
+   - Approval Chain: Implement multi-step approval workflows
 
-3. Set up environment variables:
-   ```
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
+### Policy Templates
 
-4. Run database migrations:
-   ```
-   npx prisma migrate dev
-   ```
+The system includes predefined policy templates that can be applied to credentials:
 
-5. Start the application:
-   ```
-   npm run dev
-   ```
+- Templates are organized by category (Access Control, Usage Limits, etc.)
+- Templates can be customized when applied
+- Recommended templates are available for each credential type
 
-### Docker Setup
-
-You can also run the application using Docker:
-
-```
-docker-compose up -d
-```
-
-This will start the following services:
-- Credential Proxy API
-- PostgreSQL database
-- Redis
-- Prometheus
-- Grafana
-
-## Development
-
-### Project Structure
-
-```
-credential-proxy/
-├── prisma/              # Database schema and migrations
-├── src/
-│   ├── api/             # API routes and controllers
-│   │   ├── credentials/ # Credential management
-│   │   ├── policies/    # Policy engine
-│   │   ├── db/          # Database connection
-│   │   ├── middleware/  # Express middleware
-│   │   ├── services/    # Services (queue, etc.)
-│   │   ├── utils/       # Utility functions
-│   │   └── server.ts    # Main application entry point
-│   ├── tests/           # Test files
-│   └── docker-compose.yml # Docker configuration
-```
-
-### Running Tests
-
-```
-npm test
-```
+For more details on the policy system, see the [Developer Documentation](DEVELOPER.md).
 
 ## API Documentation
 
 The Credential Proxy provides interactive API documentation using Swagger UI. After starting the application, you can access the documentation at:
 
 ```
-http://localhost:<PORT>/api-docs
+http://<HOST>:<PORT>/api-docs
 ```
+
+Where:
+- `<HOST>` is the configured host (defaults to 'localhost')
+- `<PORT>` is the configured port (defaults to 4242)
 
 The API documentation includes:
 
@@ -361,20 +452,6 @@ You can:
 - View required parameters and authentication methods
 
 In production environments, Swagger UI can be disabled by setting the `DISABLE_SWAGGER_IN_PRODUCTION` environment variable to `true`.
-
-## Security
-
-The Credential Proxy implements several security measures:
-
-- All credentials are encrypted at rest using AES-256-GCM
-- All requests from third-party applications must be signed using their private key
-- Requests include a timestamp to prevent replay attacks
-- Comprehensive policy engine for fine-grained access control
-- Audit logging of all credential access attempts
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Plugin System
 
@@ -394,6 +471,7 @@ The system comes with these built-in plugins:
 2. **OAuth** (`oauth`): For OAuth 1.0 and 2.0 flows
 3. **Ethereum** (`ethereum`): For Ethereum private key operations
 4. **Database** (`database`): For database credential operations
+5. **Cookie** (`cookie`): For browser cookie-based credentials
 
 ### Creating Custom Plugins
 
@@ -479,3 +557,51 @@ The Credential Proxy exposes a REST API for plugin discovery:
 - `GET /api/v1/admin/plugins/:id`: Get details for a specific plugin
 
 These endpoints require authentication and are intended for admin use.
+
+## Development
+
+### Available Scripts
+
+- `npm run build` - Build the backend and frontend
+- `npm run start` - Start the production server
+- `npm run dev` - Start both backend and frontend in development mode
+- `npm run dev:backend` - Start only the backend in development mode
+- `npm run dev:frontend` - Start only the frontend in development mode
+- `npm run db:up` - Start development database and Redis
+- `npm run db:down` - Stop development database and Redis
+- `npm run db:setup` - Set up the database (up, generate, migrate)
+- `npm run test` - Run tests
+- `npm run test:watch` - Run tests in watch mode
+- `npm run test:coverage` - Run tests with coverage report
+- `npm run prisma:generate` - Generate Prisma client
+- `npm run prisma:migrate` - Run database migrations
+- `npm run prisma:studio` - Open Prisma Studio
+- `npm run prisma:seed` - Seed the database
+
+### Recent Updates
+
+Recent enhancements include:
+
+- Enhanced policy system with new policy types
+- Policy templates system for easy policy creation
+- Configurable host and port settings for both frontend and backend
+- WebAuthn/Passkey authentication support
+- Improved Redis client implementation and error handling
+
+For a complete list of changes, see the [CHANGELOG.md](CHANGELOG.md) file.
+
+## Security
+
+The Credential Proxy implements several security measures:
+
+- All credentials are encrypted at rest using AES-256-GCM
+- All requests from third-party applications must be signed using their private key
+- Requests include a timestamp to prevent replay attacks
+- Comprehensive policy engine for fine-grained access control
+- WebAuthn/Passkey support for phishing-resistant authentication
+- Audit logging of all credential access attempts
+- Rate limiting and IP-based access controls
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

@@ -140,7 +140,7 @@ export function PoliciesTable({
               <div className="flex items-center gap-1">
                 <Switch
                   checked={policy.isActive}
-                  onCheckedChange={() => onToggleStatus(policy.id, policy.isActive)}
+                  onCheckedChange={() => onToggleStatus(policy.id, !policy.isActive)}
                   aria-label={policy.isActive ? "Disable policy" : "Enable policy"}
                   className="scale-75 data-[state=checked]:bg-primary"
                 />

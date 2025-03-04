@@ -5,4 +5,6 @@ global:
 scrape_configs:
   - job_name: 'credential-proxy'
     static_configs:
-      - targets: ['app:3000'] 
+      - targets: ['app:3000']
+    # Note: The actual port for the targets will be configured at container startup
+    # See docker-compose environment variables for the actual port configuration 

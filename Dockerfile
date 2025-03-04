@@ -46,8 +46,12 @@ RUN echo '#!/bin/sh' > /entrypoint.sh && \
     echo 'exec node dist/index.js' >> /entrypoint.sh && \
     chmod +x /entrypoint.sh
 
-# Expose port
-EXPOSE 3000
+# Set environment variables for production
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Expose the application port
+EXPOSE ${PORT}
 
 # Set entrypoint
 ENTRYPOINT ["/entrypoint.sh"] 

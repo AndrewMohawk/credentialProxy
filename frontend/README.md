@@ -147,6 +147,12 @@ npm run build
 Create a `.env.local` file with the following variables:
 
 ```
+# API URL - can be set directly or constructed from host and port
 NEXT_PUBLIC_API_URL=http://localhost:4242/api/v1
+# Or use individual host and port settings:
+NEXT_PUBLIC_BACKEND_HOST=localhost
+NEXT_PUBLIC_BACKEND_PORT=4242
+
+# Frontend URL
 NEXT_PUBLIC_FRONTEND_URL=http://localhost:3000
 ``` 

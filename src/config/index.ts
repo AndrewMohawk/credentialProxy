@@ -18,7 +18,10 @@ export const config = {
     name: 'Credential Proxy',
     env: process.env.NODE_ENV || 'development',
     port: parseInt(process.env.PORT || '4242', 10),
-    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3456',
+    host: process.env.HOST || 'localhost',
+    frontendPort: parseInt(process.env.FRONTEND_PORT || '3000', 10),
+    frontendHost: process.env.FRONTEND_HOST || 'localhost',
+    frontendUrl: process.env.FRONTEND_URL || `http://${process.env.FRONTEND_HOST || 'localhost'}:${parseInt(process.env.FRONTEND_PORT || '3000', 10)}`,
     apiPrefix: '/api/v1',
   },
   

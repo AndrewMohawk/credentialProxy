@@ -94,8 +94,11 @@ export default function Home() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
   const [isLoadingMetrics, setIsLoadingMetrics] = useState(true)
 
-  // API URL from environment variables or default
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4242/api/v1"
+  // Get backend configuration from environment variables or use defaults
+  const BACKEND_PORT = process.env.NEXT_PUBLIC_BACKEND_PORT || '4242';
+  const BACKEND_HOST = process.env.NEXT_PUBLIC_BACKEND_HOST || 'localhost';
+  // API URL from environment variables or default with configurable host and port
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || `http://${BACKEND_HOST}:${BACKEND_PORT}/api/v1`
 
   // Redirect to login if not authenticated
   useEffect(() => {

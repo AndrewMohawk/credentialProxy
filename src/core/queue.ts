@@ -1,10 +1,11 @@
 import { Queue, Worker, QueueEvents } from 'bullmq';
 import { createClient } from 'redis';
 import { logger } from '../utils/logger';
+import { config } from '../config';
 
 // Redis connection options
 const redisOptions = {
-  url: process.env.REDIS_URL || 'redis://localhost:6380',
+  url: process.env.REDIS_URL || `redis://${config.redis.host}:${config.redis.port}`,
 };
 
 // Create Redis client for direct use

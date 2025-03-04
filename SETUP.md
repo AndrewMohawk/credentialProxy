@@ -48,10 +48,10 @@ PASSKEY_RP_NAME=Credential Proxy
 PASSKEY_ORIGIN=https://credentialproxy.andrewmohawk.xyz
 
 # Database Configuration
-DATABASE_URL="postgresql://username:password@localhost:5432/credential_proxy?schema=public"
+DATABASE_URL="postgresql://username:password@<DB_HOST>:5432/credential_proxy?schema=public"
 ```
 
-Replace the database connection string with your actual PostgreSQL credentials.
+Replace the database connection string with your actual PostgreSQL credentials. The default `<DB_HOST>` is `localhost` if not specified otherwise.
 
 ### 4. Set Up the Database
 
@@ -67,12 +67,16 @@ npm run prisma:migrate
 
 #### Option 1: Using a Reverse Proxy (Recommended for Production)
 
-1. Configure your reverse proxy (Nginx, Apache, etc.) to forward traffic from `https://credentialproxy.andrewmohawk.xyz` to `http://localhost:3000`
+1. Configure your reverse proxy (Nginx, Apache, etc.) to forward traffic from `https://credentialproxy.andrewmohawk.xyz` to `http://<HOST>:<FRONTEND_PORT>`
 2. Start the development servers:
 
 ```bash
 npm run dev
 ```
+
+Where:
+- `<HOST>` is the configured host (defaults to 'localhost')
+- `<FRONTEND_PORT>` is the configured frontend port (defaults to 3000)
 
 #### Option 2: Local Development with Domain
 

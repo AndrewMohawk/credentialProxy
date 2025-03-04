@@ -409,6 +409,106 @@ export const updatePolicy = async (req: Request, res: Response) => {
 };
 
 /**
+ * Update the enabled/disabled status of a policy
+ * @param req Express request
+ * @param res Express response
+ */
+export const updatePolicyStatus = async (req: Request, res: Response) => {
+  try {
+    // Check if user is authenticated
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized'
+      });
+    }
+
+    const { id } = req.params;
+    const { isActive } = req.body;
+
+    // Validate the input
+    if (isActive === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: 'isActive status is required'
+      });
+    }
+
+    // First, fetch the policy to determine its scope
+    const policyToCheck = await prisma.policy.findUnique({
+      where: { id },
+      include: {
+        credential: true
+      }
+    });
+
+    if (!policyToCheck) {
+      return res.status(404).json({
+        success: false,
+        error: 'Policy not found'
+      });
+    }
+
+    // For global policies, allow the operation
+    // For credential policies, check ownership
+    let allowOperation = false;
+    
+    if (policyToCheck.scope === 'GLOBAL') {
+      // Anyone can update global policies
+      allowOperation = true;
+    } else if (policyToCheck.credentialId && policyToCheck.credential) {
+      // For credential policies, check if the credential belongs to the user
+      allowOperation = policyToCheck.credential.userId === req.user.id;
+    } else if (policyToCheck.scope === 'PLUGIN') {
+      // For plugin policies, allow any authenticated user
+      allowOperation = true;
+    }
+
+    if (!allowOperation) {
+      return res.status(404).json({
+        success: false,
+        error: 'Policy not found or does not belong to you'
+      });
+    }
+
+    // Update just the policy status
+    const updatedPolicy = await prisma.policy.update({
+      where: { id },
+      data: {
+        isEnabled: isActive,
+        auditEvents: {
+          create: {
+            type: 'POLICY_STATUS_UPDATED',
+            userId: req.user.id,
+            details: {
+              previousEnabled: policyToCheck.isEnabled,
+              newEnabled: isActive
+            }
+          }
+        }
+      }
+    });
+
+    // Map the DB model field (isEnabled) to the API response field (isActive)
+    const responseData = {
+      ...updatedPolicy,
+      isActive: updatedPolicy.isEnabled
+    };
+
+    res.status(200).json({
+      success: true,
+      data: responseData
+    });
+  } catch (error: any) {
+    logger.error(`Error updating policy status: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: `Failed to update policy status: ${error.message}`
+    });
+  }
+};
+
+/**
  * Delete a policy
  * @param req Express request
  * @param res Express response
