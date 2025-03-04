@@ -3,126 +3,51 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Key, Wallet, Database, Lock, PowerOff, Power } from "lucide-react"
-import { useEffect, useState } from "react"
-import { toast } from "@/components/ui/use-toast"
+import { Key, Wallet, Database, Lock, PowerOff, Power, Github } from "lucide-react"
+import { useState } from "react"
+import { useToast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useAuth } from "@/hooks/use-auth"
-
-interface Plugin {
-  id: string
-  name: string
-  description: string
-  version: string
-  type: string
-  enabled: boolean
-}
+import { usePlugins, Plugin } from "@/hooks/plugins/use-plugins"
 
 export function PluginsGrid() {
-  const [plugins, setPlugins] = useState<Plugin[]>([])
-  const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
+  const { plugins, isLoading, error, refreshPlugins, togglePluginStatus } = usePlugins()
   const [actionInProgress, setActionInProgress] = useState<string | null>(null)
-  const { token } = useAuth()
 
-  useEffect(() => {
-    fetchPlugins()
-  }, [token])
-
-  const fetchPlugins = async () => {
-    if (!token) {
-      toast({
-        title: "Authentication Error",
-        description: "You must be logged in to view plugins",
-        variant: "destructive"
-      })
-      setLoading(false)
-      return
-    }
-
-    try {
-      const response = await fetch('/api/v1/admin/plugins', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      const data = await response.json()
-      
-      if (data.success) {
-        setPlugins(data.plugins)
-      } else {
-        toast({
-          title: "Error",
-          description: `Failed to load plugins: ${data.error}`,
-          variant: "destructive"
-        })
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Could not connect to server",
-        variant: "destructive"
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const togglePluginStatus = async (plugin: Plugin) => {
-    if (!token) return
+  const handleToggleStatus = async (plugin: Plugin) => {
+    if (!plugin.id) return
 
     setActionInProgress(plugin.id)
     try {
-      const action = plugin.enabled ? "disable" : "enable"
-      const response = await fetch(`/api/v1/admin/plugins/${plugin.type}/${action}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
+      const result = await togglePluginStatus(plugin.id, !plugin.enabled)
       
-      const data = await response.json()
-      
-      if (data.success) {
-        toast({
-          title: "Success",
-          description: data.message
-        })
-        // Update local state
-        setPlugins(plugins.map(p => 
-          p.id === plugin.id ? { ...p, enabled: !p.enabled } : p
-        ))
-      } else {
-        toast({
-          title: "Error",
-          description: data.error,
-          variant: "destructive"
-        })
+      if (!result) {
+        // The hook already shows an error toast, but we might want to add additional handling here
+        console.error("Failed to toggle plugin status")
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update plugin status",
-        variant: "destructive"
-      })
     } finally {
       setActionInProgress(null)
     }
   }
 
-  const getPluginIcon = (type: string) => {
-    switch(type) {
+  const getPluginIcon = (type: string | undefined) => {
+    if (!type) return <Key className="h-5 w-5" />
+    
+    switch(type.toUpperCase()) {
       case 'API_KEY':
-        return <Key className="h-5 w-5" />;
+        return <Key className="h-5 w-5" />
       case 'OAUTH':
-        return <Lock className="h-5 w-5" />;
-      case 'COOKIE':
-        return <Database className="h-5 w-5" />;
+        return <Lock className="h-5 w-5" />
+      case 'AWS':
+        return <Database className="h-5 w-5" />
+      case 'GITHUB':
+        return <Github className="h-5 w-5" />
       default:
-        return <Key className="h-5 w-5" />;
+        return <Key className="h-5 w-5" />
     }
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {Array(4).fill(0).map((_, i) => (
@@ -159,6 +84,31 @@ export function PluginsGrid() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="p-4 border border-red-200 rounded-md bg-red-50 text-red-800 mb-4">
+        <h3 className="font-semibold">Error loading plugins</h3>
+        <p>{error}</p>
+        <Button 
+          variant="outline" 
+          className="mt-2" 
+          onClick={() => refreshPlugins()}
+        >
+          Try Again
+        </Button>
+      </div>
+    )
+  }
+
+  if (plugins.length === 0) {
+    return (
+      <div className="p-4 border border-gray-200 rounded-md bg-gray-50 text-gray-800 mb-4">
+        <h3 className="font-semibold">No Plugins Found</h3>
+        <p>No credential plugins are currently available.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
       {plugins.map((plugin) => (
@@ -170,17 +120,17 @@ export function PluginsGrid() {
                 {getPluginIcon(plugin.type)}
               </div>
             </div>
-            <CardDescription>{plugin.description}</CardDescription>
+            <CardDescription>{plugin.description || 'No description available'}</CardDescription>
           </CardHeader>
           <CardContent className="flex-1">
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Version</span>
-                <span>{plugin.version}</span>
+                <span>{plugin.version || 'N/A'}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Type</span>
-                <span>{plugin.type}</span>
+                <span>{plugin.type || 'Unknown'}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Status</span>
@@ -194,7 +144,7 @@ export function PluginsGrid() {
             <Button 
               variant={plugin.enabled ? "destructive" : "default"} 
               className="w-full"
-              onClick={() => togglePluginStatus(plugin)}
+              onClick={() => handleToggleStatus(plugin)}
               disabled={actionInProgress === plugin.id}
             >
               {actionInProgress === plugin.id ? (
@@ -227,47 +177,4 @@ export function PluginsGrid() {
     </div>
   )
 }
-
-const plugins = [
-  {
-    id: "api-key",
-    name: "API Key",
-    description: "Manage API key credentials for third-party services",
-    version: "1.2.0",
-    operations: 8,
-    policies: 4,
-    tags: ["REST", "HTTP", "Authentication"],
-    icon: <Key className="h-5 w-5" />,
-  },
-  {
-    id: "oauth",
-    name: "OAuth",
-    description: "OAuth 1.0 and 2.0 credential management",
-    version: "1.1.5",
-    operations: 12,
-    policies: 5,
-    tags: ["OAuth", "Authentication", "Token"],
-    icon: <Lock className="h-5 w-5" />,
-  },
-  {
-    id: "ethereum",
-    name: "Ethereum",
-    description: "Ethereum private key operations and signing",
-    version: "1.0.2",
-    operations: 15,
-    policies: 6,
-    tags: ["Blockchain", "Web3", "Crypto"],
-    icon: <Wallet className="h-5 w-5" />,
-  },
-  {
-    id: "database",
-    name: "Database",
-    description: "Secure database credential management",
-    version: "1.3.1",
-    operations: 10,
-    policies: 4,
-    tags: ["SQL", "NoSQL", "Connection"],
-    icon: <Database className="h-5 w-5" />,
-  },
-]
 

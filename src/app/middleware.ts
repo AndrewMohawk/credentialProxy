@@ -30,11 +30,15 @@ export const configureMiddleware = (app: Express): void => {
   }));
 
   // CORS middleware
+  // TODO: Remove this when we have a proper frontend URL
   app.use(cors({
-    origin: config.app.frontendUrl,
+    origin: ['http://localhost:3000', config.app.frontendUrl].filter(Boolean),
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
+    exposedHeaders: ['Authorization'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204
   }));
 
   // Body parsers

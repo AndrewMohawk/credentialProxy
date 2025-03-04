@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
+import apiClient from "@/lib/api-client"
 
 export type Credential = {
   id: string
@@ -43,7 +44,7 @@ export type Credential = {
   updatedAt: string
 }
 
-export const columns: ColumnDef<Credential>[] = [
+export const columns = (onCredentialDeleted?: () => void): ColumnDef<Credential>[] => [
   {
     id: "select",
     header: ({ table }) => (
@@ -125,59 +126,6 @@ export const columns: ColumnDef<Credential>[] = [
       const { toast } = useToast()
       const router = useRouter()
 
-      async function onDelete() {
-        try {
-          const response = await fetch(`/api/v1/credentials/${credential.id}`, {
-            method: "DELETE",
-          })
-
-          if (!response.ok) {
-            throw new Error("Failed to delete credential")
-          }
-
-          toast({
-            title: "Success",
-            description: "Credential deleted successfully",
-          })
-
-          // Refresh the page
-          window.location.reload()
-        } catch (error) {
-          toast({
-            title: "Error",
-            description: "Failed to delete credential",
-            variant: "destructive",
-          })
-        }
-      }
-
-      async function toggleEnabled() {
-        const action = credential.isEnabled ? 'disable' : 'enable'
-        try {
-          const response = await fetch(`/api/v1/credentials/${credential.id}/${action}`, {
-            method: "POST",
-          })
-
-          if (!response.ok) {
-            throw new Error(`Failed to ${action} credential`)
-          }
-
-          toast({
-            title: "Success",
-            description: `Credential ${action}d successfully`,
-          })
-
-          // Refresh the page
-          window.location.reload()
-        } catch (error) {
-          toast({
-            title: "Error",
-            description: `Failed to ${action} credential`,
-            variant: "destructive",
-          })
-        }
-      }
-
       function navigateToPolicies() {
         router.push(`/policies?credential=${credential.id}`)
       }
@@ -202,12 +150,15 @@ export const columns: ColumnDef<Credential>[] = [
             <DropdownMenuItem onClick={navigateToPolicies}>
               Edit Policies
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={toggleEnabled}>
+            <DropdownMenuItem onClick={() => {
+              const action = credential.isEnabled ? 'disable' : 'enable';
+              performCredentialAction(credential.id, action, toast, onCredentialDeleted);
+            }}>
               {credential.isEnabled ? "Disable" : "Enable"} Credential
             </DropdownMenuItem>
             <DropdownMenuItem
               className="text-red-600"
-              onClick={onDelete}
+              onClick={() => deleteCredential(credential.id, credential.name, toast, onCredentialDeleted)}
             >
               Delete
             </DropdownMenuItem>
@@ -218,23 +169,89 @@ export const columns: ColumnDef<Credential>[] = [
   },
 ]
 
+// Function to delete a credential
+const deleteCredential = async (
+  credentialId: string, 
+  credentialName: string, 
+  toast: any, 
+  onCredentialDeleted?: () => void
+) => {
+  try {
+    const response = await apiClient.delete(`/credentials/${credentialId}`);
+    
+    if (response.success) {
+      toast({
+        title: "Credential deleted",
+        description: `${credentialName} has been deleted successfully.`,
+      });
+      
+      // Refresh the credentials list
+      onCredentialDeleted?.();
+    } else {
+      throw new Error(response.error || "Failed to delete credential");
+    }
+  } catch (error: any) {
+    console.error("Error deleting credential:", error);
+    toast({
+      variant: "destructive",
+      title: "Error",
+      description: error.message || "Failed to delete credential. Please try again.",
+    });
+  }
+};
+
+// Function to perform credential actions (revoke, etc.)
+const performCredentialAction = async (
+  credentialId: string, 
+  action: string, 
+  toast: any, 
+  onCredentialDeleted?: () => void
+) => {
+  try {
+    const response = await apiClient.post(`/credentials/${credentialId}/${action}`);
+    
+    if (response.success) {
+      toast({
+        title: "Action successful",
+        description: `${action.charAt(0).toUpperCase() + action.slice(1)} action completed successfully.`,
+      });
+      
+      // Refresh the credentials list
+      onCredentialDeleted?.();
+    } else {
+      throw new Error(response.error || `Failed to ${action} credential`);
+    }
+  } catch (error: any) {
+    console.error(`Error performing ${action}:`, error);
+    toast({
+      variant: "destructive",
+      title: "Error",
+      description: error.message || `Failed to ${action} credential. Please try again.`,
+    });
+  }
+};
+
 interface CredentialsTableProps {
-  data: Credential[]
+  data: Credential[];
+  onCredentialDeleted?: () => void;
 }
 
-export function CredentialsTable({ data }: CredentialsTableProps) {
+export function CredentialsTable({ data, onCredentialDeleted }: CredentialsTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [rowSelection, setRowSelection] = React.useState({})
-
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
+  const [actioningId, setActioningId] = React.useState<string | null>(null);
+  const { toast } = useToast();
+  
   const table = useReactTable({
     data,
-    columns,
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
+    columns: columns(onCredentialDeleted),
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
+    onColumnFiltersChange: setColumnFilters,
     getFilteredRowModel: getFilteredRowModel(),
     onRowSelectionChange: setRowSelection,
     state: {
@@ -306,7 +323,7 @@ export function CredentialsTable({ data }: CredentialsTableProps) {
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={columns.length}
+                  colSpan={columns(onCredentialDeleted).length}
                   className="h-24 text-center"
                 >
                   No credentials found.

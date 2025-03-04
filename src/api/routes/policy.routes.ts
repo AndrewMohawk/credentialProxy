@@ -5,12 +5,21 @@ import { authenticateJWT } from '../../middleware/auth';
 
 const router = Router();
 
+// Handle OPTIONS preflight requests without authentication
+router.options('*', (req, res) => {
+  // Pre-flight request handler for CORS
+  res.status(204).end();
+});
+
 // Policy routes
 router.get('/', authenticateJWT, policyController.getAllPolicies);
 router.get('/:id', authenticateJWT, policyController.getPolicyById);
 router.post('/', authenticateJWT, policyController.createPolicy);
 router.put('/:id', authenticateJWT, policyController.updatePolicy);
 router.delete('/:id', authenticateJWT, policyController.deletePolicy);
+
+// Test policies (simulate policy evaluation)
+router.post('/simulate', authenticateJWT, policyController.simulatePolicy);
 
 // New Template routes
 router.get('/templates/all', authenticateJWT, policyTemplateController.getAllTemplates);

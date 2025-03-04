@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
 import { DashboardNav } from "@/components/dashboard-nav"
-import axios from "axios"
+import apiClient from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 import {
   Table,
@@ -65,16 +65,12 @@ export default function ApplicationsPage() {
   const fetchApplications = async () => {
     setIsLoadingApplications(true)
     try {
-      const response = await axios.get(`${API_URL}/applications`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
+      const response = await apiClient.get('/applications');
       
-      if (response.data.success) {
-        setApplications(response.data.data || [])
+      if (response.success) {
+        setApplications(response.data || [])
       } else {
-        throw new Error(response.data.error || "Failed to fetch applications")
+        throw new Error(response.error || "Failed to fetch applications")
       }
     } catch (error: any) {
       console.error("Error fetching applications:", error)

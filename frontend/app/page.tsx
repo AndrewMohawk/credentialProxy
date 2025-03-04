@@ -6,7 +6,7 @@ import { Shield, Activity, AlarmClock, HeartPulse, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/hooks/use-auth"
-import axios from "axios"
+import apiClient from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 import { DashboardShell } from "@/components/dashboard-shell"
 import { DashboardHeader } from "@/components/dashboard-header" 
@@ -111,38 +111,25 @@ export default function Home() {
     }
   }, [isAuthenticated, isLoading])
 
-  // Function to fetch dashboard metrics from API
+  // Function to fetch dashboard metrics
   const fetchDashboardMetrics = async () => {
     setIsLoadingMetrics(true)
     try {
-      const response = await axios.get(`${API_URL}/dashboard/metrics`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
+      const response = await apiClient.get('/dashboard/metrics');
       
-      if (response.data.success) {
-        setMetrics(response.data.data)
+      if (response.success) {
+        setMetrics(response.data)
       } else {
-        throw new Error(response.data.error || "Failed to fetch dashboard metrics")
+        throw new Error(response.error || "Failed to fetch dashboard metrics")
       }
     } catch (error: any) {
       console.error("Error fetching dashboard metrics:", error)
-      
-      // Don't show toast for 401 errors (handled by interceptor)
-      if (!(error.response && error.response.status === 401)) {
-        const errorMessage = error.code === 'ERR_NETWORK' 
-          ? "Cannot connect to the server. Please check your network connection."
-          : error.message || "An error occurred while fetching dashboard data."
-        
-        toast({
-          variant: "destructive",
-          title: "Error fetching dashboard metrics",
-          description: errorMessage
-        })
-      }
-      
-      // Set default metrics in case of error
+      toast({
+        variant: "destructive",
+        title: "Error fetching dashboard metrics",
+        description: error.message || "An error occurred while fetching dashboard metrics."
+      })
+      // Initialize with empty metrics in case of error
       setMetrics({
         credentialCount: 0,
         applicationCount: 0,

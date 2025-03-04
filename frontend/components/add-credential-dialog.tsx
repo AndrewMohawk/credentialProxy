@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/hooks/use-auth"
+import apiClient from "@/lib/api-client"
 
 // Dynamic schema will be created based on available types
 const baseCredentialFormSchema = z.object({
@@ -172,23 +173,14 @@ export function AddCredentialDialog({ onCredentialAdded }: AddCredentialDialogPr
         throw new Error("Not authenticated");
       }
 
-      const response = await fetch("/api/v1/credentials/types", {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      });
+      const response = await apiClient.get('/credentials/types');
       
-      if (!response.ok) {
-        throw new Error(`Failed to fetch credential types: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      console.log("Credential types response:", data);
+      console.log("Credential types response:", response);
       
       // Check the response structure
-      if (data.success && data.types) {
-        // The API returns { success: true, types: [...] }
-        const formattedTypes = data.types.map((type: any) => ({
+      if (response.success) {
+        // The API returns an array of credential types directly in data
+        const formattedTypes = response.data.map((type: any) => ({
           id: type.type,
           name: type.type,
           description: type.description
@@ -227,21 +219,14 @@ export function AddCredentialDialog({ onCredentialAdded }: AddCredentialDialogPr
         throw new Error("Not authenticated");
       }
       
-      const response = await fetch("/api/v1/credentials", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          name: data.name,
-          type: data.type,
-          data: data.data,
-        }),
-      })
+      const response = await apiClient.post('/credentials', {
+        name: data.name,
+        type: data.type,
+        data: data.data,
+      });
 
-      if (!response.ok) {
-        throw new Error("Failed to create credential")
+      if (!response.success) {
+        throw new Error(response.error || "Failed to create credential");
       }
 
       toast({
@@ -252,10 +237,10 @@ export function AddCredentialDialog({ onCredentialAdded }: AddCredentialDialogPr
       setOpen(false)
       form.reset()
       onCredentialAdded?.()
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to create credential. Please try again.",
+        description: error.message || "Failed to create credential. Please try again.",
         variant: "destructive",
       })
     } finally {

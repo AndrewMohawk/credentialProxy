@@ -2,6 +2,7 @@ import { Policy, PolicyEvaluationResult, PolicyStatus, PolicyType } from './poli
 import { logger } from '../../utils/logger';
 import { isInIPRange } from '../../utils/ipUtils';
 import { getUsageMetrics } from '../../services/usageMetricsService';
+import { prisma } from '../../db/prisma';
 
 /**
  * Proxy request interface
@@ -692,4 +693,246 @@ function evaluateCondition(actual: any, operator: string, expected: any): boolea
       logger.warn(`Unknown operator: ${operator}`);
       return false;
   }
+}
+
+/**
+ * Simulates policy evaluation for testing purposes
+ * @param applicationId The ID of the application
+ * @param credentialId The ID of the credential
+ * @param operation The operation to simulate
+ * @param parameters Optional parameters for the operation
+ * @returns The result of the policy evaluation simulation
+ */
+export async function simulatePolicy(
+  applicationId: string,
+  credentialId: string,
+  operation: string,
+  parameters: Record<string, any> = {}
+): Promise<{
+  allowed: boolean;
+  matchedPolicy?: string;
+  reason?: string;
+  requiresApproval?: boolean;
+}> {
+  try {
+    // Get the credential
+    const credential = await prisma.credential.findUnique({
+      where: { id: credentialId },
+      include: {
+        user: true // Use a valid include property
+      }
+    });
+    
+    if (!credential) {
+      return {
+        allowed: false,
+        reason: `Credential with id ${credentialId} not found`
+      };
+    }
+    
+    // Get the application
+    const application = await prisma.application.findUnique({
+      where: { id: applicationId }
+    });
+    
+    if (!application) {
+      return {
+        allowed: false,
+        reason: `Application with id ${applicationId} not found`
+      };
+    }
+    
+    // Check if the application has access to this credential
+    const accessGranted = await prisma.application.findFirst({
+      where: {
+        id: applicationId,
+        credentials: {
+          some: {
+            id: credentialId
+          }
+        }
+      }
+    });
+    
+    if (!accessGranted) {
+      return {
+        allowed: false,
+        reason: `Application ${applicationId} does not have access to credential ${credentialId}`
+      };
+    }
+    
+    // Create a request object for evaluation
+    const request: ProxyRequest = {
+      id: `sim-${Date.now()}`,
+      applicationId,
+      credentialId,
+      operation,
+      parameters,
+      timestamp: new Date()
+    };
+    
+    // Get applicable policies
+    const policies = await getApplicablePolicies(credentialId, applicationId);
+    
+    if (policies.length === 0) {
+      return {
+        allowed: true,
+        reason: 'No policies found, default is to allow'
+      };
+    }
+    
+    // Evaluate each policy
+    for (const policy of policies) {
+      // Skip inactive policies
+      if (!policy.isActive) continue;
+      
+      const result = await evaluatePolicy(request, policy);
+      
+      // If the policy denied access, return the result
+      if (result.status === PolicyStatus.DENIED) {
+        return {
+          allowed: false,
+          matchedPolicy: policy.id,
+          reason: result.reason || `Access denied by policy ${policy.name}`
+        };
+      }
+      
+      // If the policy requires approval, return that info
+      if (result.status === PolicyStatus.PENDING) {
+        return {
+          allowed: false,
+          matchedPolicy: policy.id,
+          reason: result.reason || `Access requires approval by policy ${policy.name}`,
+          requiresApproval: true
+        };
+      }
+    }
+    
+    // If we got here, all policies passed
+    return {
+      allowed: true,
+      reason: 'All policies passed'
+    };
+  } catch (error) {
+    console.error('Error simulating policy evaluation:', error);
+    return {
+      allowed: false,
+      reason: 'Error evaluating policies'
+    };
+  }
+}
+
+// Function to get applicable policies
+async function getApplicablePolicies(credentialId: string, applicationId: string): Promise<Policy[]> {
+  // Get policies from the database
+  const policies = await prisma.policy.findMany({
+    where: {
+      OR: [
+        { credentialId: credentialId },
+        { applicationId: applicationId }
+      ],
+      isEnabled: true
+    }
+  });
+  
+  // Convert to Policy interface
+  return policies.map(dbPolicy => ({
+    id: dbPolicy.id,
+    type: dbPolicy.type as PolicyType,
+    name: dbPolicy.name,
+    description: dbPolicy.description || '',
+    scope: 'credential' as any, // Default scope
+    applicationId: dbPolicy.applicationId || undefined,
+    credentialId: dbPolicy.credentialId || undefined,
+    config: dbPolicy.configuration as Record<string, any>,
+    priority: 0, // Default priority
+    isActive: dbPolicy.isEnabled
+  }));
+}
+
+/**
+ * Simulate an operation to see if it would be allowed by policies
+ */
+export async function simulateOperation(
+  credentialId: string,
+  applicationId: string,
+  operation: string,
+  parameters: Record<string, any>
+): Promise<PolicyEvaluationResult> {
+  logger.info(`Simulating operation ${operation} for credential ${credentialId} and application ${applicationId}`);
+  
+  // Check if the credential exists
+  const credential = await prisma.credential.findUnique({
+    where: { id: credentialId },
+    include: {
+      user: true
+    }
+  });
+  
+  if (!credential) {
+    return {
+      status: PolicyStatus.DENIED,
+      reason: `Credential ${credentialId} not found`,
+    };
+  }
+  
+  // Check if the application has access to this credential
+  const accessGranted = await prisma.application.findFirst({
+    where: {
+      id: applicationId,
+      credentials: {
+        some: {
+          id: credentialId
+        }
+      }
+    }
+  });
+  
+  if (!accessGranted) {
+    return {
+      status: PolicyStatus.DENIED,
+      reason: `Application ${applicationId} does not have access to credential ${credentialId}`,
+    };
+  }
+  
+  // Create a request object for evaluation
+  const request: ProxyRequest = {
+    id: `sim-${Date.now()}`,
+    applicationId,
+    credentialId,
+    operation,
+    parameters,
+    timestamp: new Date()
+  };
+  
+  // Get applicable policies
+  const policies = await getApplicablePolicies(credentialId, applicationId);
+  
+  if (policies.length === 0) {
+    return {
+      status: PolicyStatus.APPROVED,
+      reason: 'No policies found, default is to allow',
+    };
+  }
+  
+  // Evaluate each policy
+  for (const policy of policies) {
+    const result = await evaluatePolicy(request, policy);
+    
+    // If any policy denies, return immediately
+    if (result.status === PolicyStatus.DENIED) {
+      return result;
+    }
+    
+    // If a policy requires approval, return that result
+    if (result.status === PolicyStatus.PENDING) {
+      return result;
+    }
+  }
+  
+  // If we get here, all policies approved
+  return {
+    status: PolicyStatus.APPROVED,
+    reason: 'All policies approved',
+  };
 } 

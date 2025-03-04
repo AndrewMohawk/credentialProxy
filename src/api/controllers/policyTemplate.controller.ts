@@ -12,7 +12,7 @@ import { PolicyType } from '../../core/policies/policyTypes';
 import { logger } from '../../utils/logger';
 import { prisma } from '../../db/prisma';
 
-const pluginManager = new PluginManager();
+const pluginManager = PluginManager.getInstance();
 const policyTemplateService = new PolicyTemplateService(pluginManager);
 
 /**

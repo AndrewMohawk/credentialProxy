@@ -38,6 +38,7 @@ import { format } from "date-fns"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { DashboardShell } from "@/components/dashboard-shell"
 import { DashboardHeader } from "@/components/dashboard-header"
+import apiClient from "@/lib/api-client"
 
 // Define the audit log type
 type AuditLog = {
@@ -122,42 +123,30 @@ export default function AuditLogsPage() {
     }
   }, [isAuthenticated, token, date, typeFilter, statusFilter])
 
-  // Function to fetch audit logs from API
+  // Function to fetch audit logs
   const fetchAuditLogs = async () => {
     setIsLoadingLogs(true)
     try {
-      const response = await axios.get(`${API_URL}/audit-logs`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
-        params: {
-          date: date ? format(date, 'yyyy-MM-dd') : undefined,
-          type: typeFilter !== 'all' ? typeFilter : undefined,
-          status: statusFilter !== 'all' ? statusFilter : undefined
-        }
-      })
+      const params = {
+        date: date ? format(date, 'yyyy-MM-dd') : undefined,
+        type: typeFilter !== 'all' ? typeFilter : undefined,
+        status: statusFilter !== 'all' ? statusFilter : undefined
+      };
       
-      if (response.data.success) {
-        setAuditLogs(response.data.data || [])
+      const response = await apiClient.get('/audit-logs', { params });
+      
+      if (response.success) {
+        setAuditLogs(response.data || [])
       } else {
-        throw new Error(response.data.error || "Failed to fetch audit logs")
+        throw new Error(response.error || "Failed to fetch audit logs")
       }
     } catch (error: any) {
       console.error("Error fetching audit logs:", error)
-      
-      // Don't show toast for 401 errors (handled by interceptor)
-      if (!(error.response && error.response.status === 401)) {
-        const errorMessage = error.code === 'ERR_NETWORK' 
-          ? "Cannot connect to the server. Please check your network connection."
-          : error.message || "An error occurred while fetching audit logs."
-        
-        toast({
-          variant: "destructive",
-          title: "Error fetching audit logs",
-          description: errorMessage
-        })
-      }
-      
+      toast({
+        variant: "destructive",
+        title: "Error fetching audit logs",
+        description: error.message || "An error occurred while fetching audit logs."
+      })
       // Initialize with empty array in case of error
       setAuditLogs([])
     } finally {

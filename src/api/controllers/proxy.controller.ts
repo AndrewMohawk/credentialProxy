@@ -119,7 +119,7 @@ export const handleProxyRequest = async (req: Request, res: Response) => {
         name: dbPolicy.name,
         description: '', // Default empty string for description
         applicationId: dbPolicy.applicationId || undefined,
-        credentialId: dbPolicy.credentialId,
+        credentialId: dbPolicy.credentialId || undefined, // Convert null to undefined
         config: dbPolicy.configuration as Record<string, any>,
         priority: 0, // Default priority
         isActive: dbPolicy.isEnabled,
@@ -127,7 +127,7 @@ export const handleProxyRequest = async (req: Request, res: Response) => {
     });
     
     // Evaluate policies
-    const policyResult = await evaluateRequest(proxyRequest, policiesForEvaluation);
+    const policyResult = await evaluateRequest(proxyRequest);
     
     // Log the access attempt
     await prisma.auditEvent.create({

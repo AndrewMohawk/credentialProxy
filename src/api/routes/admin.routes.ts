@@ -239,4 +239,57 @@ router.get('/plugins/enabled', async (req, res) => {
   }
 });
 
+// Create a public API endpoint for credentials
+router.get('/credentials', authMiddleware, async (req, res) => {
+  try {
+    const credentials = await prisma.credential.findMany({
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        isEnabled: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+    
+    return res.json(credentials);
+  } catch (error) {
+    console.error('Error fetching credentials:', error);
+    return res.status(500).json({ error: 'Failed to fetch credentials' });
+  }
+});
+
+// Modify the existing plugins endpoint to make it accessible via auth middleware
+router.get('/plugins', authMiddleware, async (req, res) => {
+  try {
+    const pluginManager = getPluginManager();
+    const plugins = pluginManager.getAllPlugins().map((plugin) => {
+      // Create a safe representation of the plugin for the API
+      return {
+        id: plugin.getId(),
+        name: plugin.getName(),
+        description: plugin.getDescription(),
+        version: plugin.getVersion(),
+        type: plugin.getType(),
+        enabled: pluginManager.isPluginEnabled(plugin.getType())
+      };
+    });
+    
+    res.status(200).json({
+      success: true,
+      plugins,
+    });
+  } catch (error: any) {
+    logger.error(`Error getting plugins: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get plugins',
+    });
+  }
+});
+
 export const adminRoutes = router; 

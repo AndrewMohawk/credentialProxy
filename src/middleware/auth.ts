@@ -22,13 +22,26 @@ declare global {
 /**
  * Middleware to authenticate JWT tokens
  * Checks if the token is valid and not blocklisted
+ * Allows OPTIONS requests to pass through without authentication for CORS
  */
 export async function authenticateJWT(req: Request, res: Response, next: NextFunction): Promise<void> {
+  // Allow OPTIONS requests to pass through without authentication for CORS
+  if (req.method === 'OPTIONS') {
+    next();
+    return;
+  }
+  
   try {
     const authHeader = req.headers.authorization;
     
     if (!authHeader) {
-      res.status(401).json({ message: 'Authorization header is missing' });
+      res.status(401).json({ 
+        statusCode: 401,
+        message: 'Unauthorized', 
+        messageId: 'auth.unauthorized',
+        extra: null,
+        traceID: ''
+      });
       return;
     }
     

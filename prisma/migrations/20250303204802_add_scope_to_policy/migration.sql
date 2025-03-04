@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Policy" ADD COLUMN     "scope" TEXT NOT NULL DEFAULT 'CREDENTIAL',
+ALTER COLUMN "credentialId" DROP NOT NULL;

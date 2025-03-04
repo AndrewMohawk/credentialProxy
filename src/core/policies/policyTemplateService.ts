@@ -4,6 +4,13 @@ import { PolicyTemplate, getTemplateById, getRecommendedTemplates } from './poli
 import { PolicyType } from './policyTypes';
 import { PluginManager } from '../../plugins/PluginManager';
 
+// Define an interface for operations
+interface Operation {
+  name: string;
+  riskLevel: number;
+  [key: string]: any;
+}
+
 /**
  * Service for applying policy templates to credentials
  */
@@ -96,23 +103,23 @@ export class PolicyTemplateService {
       // we can try to populate from the plugin's supported operations
       if (plugin && ['ALLOW_LIST', 'DENY_LIST', 'MANUAL_APPROVAL'].includes(template.type) && 
           (!config.operations || config.operations.length === 0)) {
-        // Check if the plugin has policy templates we can use
-        const pluginTemplate = plugin.policyTemplates?.find(pt => 
-          pt.policyType === template.type && pt.id === template.id);
+        // Check if the plugin has operations we can use
+        // Use type assertion since we know some plugins might have this method
+        const getOperations = (plugin as any).getOperations;
+        const operations: Operation[] = getOperations ? getOperations() : [];
           
-        if (pluginTemplate) {
-          // Use the plugin's template configuration
-          config = { ...config, ...pluginTemplate.configuration };
-        } else if (template.type === 'MANUAL_APPROVAL') {
-          // For manual approval, we can use operations that have high risk
-          config.operations = plugin.supportedOperations
-            .filter(op => op.riskLevel >= 7)
-            .map(op => op.name);
-        } else if (template.type === 'ALLOW_LIST') {
-          // For allow list, use low risk operations by default
-          config.operations = plugin.supportedOperations
-            .filter(op => op.riskLevel <= 3)
-            .map(op => op.name);
+        if (operations && operations.length > 0) {
+          if (template.type === 'MANUAL_APPROVAL') {
+            // For manual approval, we can use operations that have high risk
+            config.operations = operations
+              .filter((op: Operation) => op.riskLevel >= 7)
+              .map((op: Operation) => op.name);
+          } else if (template.type === 'ALLOW_LIST') {
+            // For allow list, use low risk operations by default
+            config.operations = operations
+              .filter((op: Operation) => op.riskLevel <= 3)
+              .map((op: Operation) => op.name);
+          }
         }
       }
       
