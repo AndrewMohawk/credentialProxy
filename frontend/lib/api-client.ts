@@ -351,4 +351,84 @@ class ApiClient {
 // Create a singleton instance
 const apiClient = new ApiClient();
 
-export default apiClient; 
+export default apiClient;
+
+// Policy-specific API services
+export const policyApi = {
+  // Fetch all policies for a credential
+  async fetchPolicies(credentialId: string) {
+    const client = new ApiClient();
+    return client.get<Policy[]>(`/credentials/${credentialId}/policies`);
+  },
+  
+  // Fetch a single policy by ID
+  async fetchPolicy(policyId: string) {
+    const client = new ApiClient();
+    return client.get<Policy>(`/policies/${policyId}`);
+  },
+  
+  // Create a new policy
+  async createPolicy(credentialId: string, policy: Omit<Policy, 'id' | 'createdAt' | 'updatedAt' | 'version'>) {
+    const client = new ApiClient();
+    return client.post<Policy>(`/credentials/${credentialId}/policies`, policy);
+  },
+  
+  // Update an existing policy
+  async updatePolicy(policyId: string, policy: Omit<Policy, 'id' | 'createdAt' | 'updatedAt'>) {
+    const client = new ApiClient();
+    return client.put<Policy>(`/policies/${policyId}`, policy);
+  },
+  
+  // Delete a policy
+  async deletePolicy(policyId: string) {
+    const client = new ApiClient();
+    return client.delete(`/policies/${policyId}`);
+  },
+  
+  // Toggle a policy's enabled state
+  async togglePolicy(policyId: string, enabled: boolean) {
+    const client = new ApiClient();
+    return client.put<Policy>(`/policies/${policyId}/toggle`, { enabled });
+  },
+  
+  // Validate a policy against its schema
+  async validatePolicy(policy: Partial<Policy>) {
+    const client = new ApiClient();
+    return client.post('/policy-validation/validate', policy);
+  },
+  
+  // Get a policy template for a specific type
+  async getPolicyTemplate(type: string) {
+    const client = new ApiClient();
+    return client.get<Partial<Policy>>(`/policy-validation/template/${type}`);
+  },
+  
+  // Simulate applying a policy to an operation
+  async simulatePolicy(policy: any, operationRequest: any) {
+    const client = new ApiClient();
+    return client.post('/policy-validation/simulate', { policy, operationRequest });
+  },
+  
+  // Get field suggestions for a policy type
+  async getPolicySuggestions(type: string, path?: string) {
+    const client = new ApiClient();
+    const url = path ? `/policy-validation/suggestions/${type}?path=${path}` : `/policy-validation/suggestions/${type}`;
+    return client.get<Array<{ label: string; description: string; value?: any }>>(url);
+  },
+  
+  // Get field paths for a policy type
+  async getPolicyFieldPaths(type: string) {
+    const client = new ApiClient();
+    return client.get<string[]>(`/policy-validation/field-paths/${type}`);
+  },
+  
+  // Get policy blueprints for a plugin type
+  async getPolicyBlueprints(pluginType?: string) {
+    const client = new ApiClient();
+    const url = pluginType ? `/policy-blueprints/${pluginType}` : '/policy-blueprints';
+    return client.get<Array<any>>(url);
+  }
+};
+
+// Type import is needed
+import { Policy } from './types/policy'; 

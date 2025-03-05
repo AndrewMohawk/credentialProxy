@@ -1,5 +1,6 @@
-"use client"
+'use client';
 
+import React from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -9,8 +10,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Button } from "@/components/ui/button"
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
 
 interface PolicyDeleteAlertProps {
   open: boolean;
@@ -33,7 +34,7 @@ export function PolicyDeleteAlert({
         <AlertDialogHeader>
           <AlertDialogTitle>Delete Policy</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete the policy <strong>"{policyName}"</strong>? This action cannot be undone.
+            Are you sure you want to delete the policy <strong>&quot;{policyName}&quot;</strong>? This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -50,12 +51,12 @@ export function PolicyDeleteAlert({
                   Deleting...
                 </>
               ) : (
-                "Delete"
+                'Delete'
               )}
             </Button>
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 } 

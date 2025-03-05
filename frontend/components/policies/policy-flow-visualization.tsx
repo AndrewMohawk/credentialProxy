@@ -1,68 +1,69 @@
-import { ArrowDownIcon, CheckCircleIcon, XCircleIcon, ShieldIcon, GlobeIcon, PlugIcon, KeyIcon } from "lucide-react"
-import { useState } from "react"
-import { useTheme } from "next-themes"
+import React from 'react';
+import { ArrowDownIcon, CheckCircleIcon, XCircleIcon, ShieldIcon, GlobeIcon, PlugIcon, KeyIcon } from 'lucide-react';
+import { useState } from 'react';
+import { useTheme } from 'next-themes';
 
 export function PolicyFlowVisualization() {
-  const [hoveredSection, setHoveredSection] = useState<string | null>(null)
-  const { theme } = useTheme()
-  const isDark = theme === "dark"
+  const [hoveredSection, setHoveredSection] = useState<string | null>(null);
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   
   // Define theme-aware colors
   const colors = {
     cardBg: {
-      incoming: isDark ? "bg-violet-950/40" : "bg-gradient-to-b from-violet-50 to-violet-100",
-      global: isDark ? "bg-blue-950/40" : "bg-gradient-to-b from-blue-50 to-blue-100",
-      plugin: isDark ? "bg-amber-950/40" : "bg-gradient-to-b from-amber-50 to-amber-100",
-      credential: isDark ? "bg-emerald-950/40" : "bg-gradient-to-b from-emerald-50 to-emerald-100",
-      deny: isDark ? "bg-red-950/40" : "bg-gradient-to-b from-red-50 to-red-100",
-      allow: isDark ? "bg-green-950/40" : "bg-gradient-to-b from-green-50 to-green-100"
+      incoming: isDark ? 'bg-violet-950/40' : 'bg-gradient-to-b from-violet-50 to-violet-100',
+      global: isDark ? 'bg-blue-950/40' : 'bg-gradient-to-b from-blue-50 to-blue-100',
+      plugin: isDark ? 'bg-amber-950/40' : 'bg-gradient-to-b from-amber-50 to-amber-100',
+      credential: isDark ? 'bg-emerald-950/40' : 'bg-gradient-to-b from-emerald-50 to-emerald-100',
+      deny: isDark ? 'bg-red-950/40' : 'bg-gradient-to-b from-red-50 to-red-100',
+      allow: isDark ? 'bg-green-950/40' : 'bg-gradient-to-b from-green-50 to-green-100'
     },
     cardBorder: {
-      incoming: isDark ? "border-violet-800" : "border-violet-200",
-      global: isDark ? "border-blue-800" : "border-blue-200",
-      plugin: isDark ? "border-amber-800" : "border-amber-200",
-      credential: isDark ? "border-emerald-800" : "border-emerald-200",
-      deny: isDark ? "border-red-800" : "border-red-200",
-      allow: isDark ? "border-green-800" : "border-green-200"
+      incoming: isDark ? 'border-violet-800' : 'border-violet-200',
+      global: isDark ? 'border-blue-800' : 'border-blue-200',
+      plugin: isDark ? 'border-amber-800' : 'border-amber-200',
+      credential: isDark ? 'border-emerald-800' : 'border-emerald-200',
+      deny: isDark ? 'border-red-800' : 'border-red-200',
+      allow: isDark ? 'border-green-800' : 'border-green-200'
     },
     iconBg: {
-      incoming: isDark ? "bg-violet-800" : "bg-violet-500",
-      global: isDark ? "bg-blue-800" : "bg-blue-500",
-      plugin: isDark ? "bg-amber-800" : "bg-amber-500",
-      credential: isDark ? "bg-emerald-800" : "bg-emerald-500",
+      incoming: isDark ? 'bg-violet-800' : 'bg-violet-500',
+      global: isDark ? 'bg-blue-800' : 'bg-blue-500',
+      plugin: isDark ? 'bg-amber-800' : 'bg-amber-500',
+      credential: isDark ? 'bg-emerald-800' : 'bg-emerald-500',
     },
     iconRingBg: {
-      incoming: isDark ? "bg-violet-900/50" : "bg-violet-100",
-      global: isDark ? "bg-blue-900/50" : "bg-blue-100",
-      plugin: isDark ? "bg-amber-900/50" : "bg-amber-100",
-      credential: isDark ? "bg-emerald-900/50" : "bg-emerald-100",
+      incoming: isDark ? 'bg-violet-900/50' : 'bg-violet-100',
+      global: isDark ? 'bg-blue-900/50' : 'bg-blue-100',
+      plugin: isDark ? 'bg-amber-900/50' : 'bg-amber-100',
+      credential: isDark ? 'bg-emerald-900/50' : 'bg-emerald-100',
     },
     text: {
-      heading: isDark ? "text-gray-200" : "text-gray-900",
-      subheading: isDark ? "text-gray-400" : "text-gray-500",
-      title: isDark ? "text-gray-100" : "text-gray-800",
-      description: isDark ? "text-gray-400" : "text-gray-500"
+      heading: isDark ? 'text-gray-200' : 'text-gray-900',
+      subheading: isDark ? 'text-gray-400' : 'text-gray-500',
+      title: isDark ? 'text-gray-100' : 'text-gray-800',
+      description: isDark ? 'text-gray-400' : 'text-gray-500'
     },
-    line: isDark ? "bg-gray-700" : "bg-gray-200",
+    line: isDark ? 'bg-gray-700' : 'bg-gray-200',
     activeLine: {
-      incoming: isDark ? "bg-violet-600" : "bg-violet-400",
-      global: isDark ? "bg-blue-600" : "bg-blue-400",
-      plugin: isDark ? "bg-amber-600" : "bg-amber-400",
-      credential: isDark ? "bg-emerald-600" : "bg-emerald-400"
+      incoming: isDark ? 'bg-violet-600' : 'bg-violet-400',
+      global: isDark ? 'bg-blue-600' : 'bg-blue-400',
+      plugin: isDark ? 'bg-amber-600' : 'bg-amber-400',
+      credential: isDark ? 'bg-emerald-600' : 'bg-emerald-400'
     },
     deny: {
-      text: isDark ? "text-red-400" : "text-red-500",
-      line: isDark ? "border-red-700" : "border-red-300",
-      icon: isDark ? "text-red-400" : "text-red-500"
+      text: isDark ? 'text-red-400' : 'text-red-500',
+      line: isDark ? 'border-red-700' : 'border-red-300',
+      icon: isDark ? 'text-red-400' : 'text-red-500'
     },
     allow: {
-      text: isDark ? "text-green-400" : "text-green-500",
-      icon: isDark ? "text-green-400" : "text-green-500"
+      text: isDark ? 'text-green-400' : 'text-green-500',
+      icon: isDark ? 'text-green-400' : 'text-green-500'
     },
     fastPath: {
-      textBg: isDark ? "bg-red-900/20" : "bg-red-50"
+      textBg: isDark ? 'bg-red-900/20' : 'bg-red-50'
     }
-  }
+  };
   
   return (
     <div className="w-full p-2 relative">
@@ -238,5 +239,5 @@ export function PolicyFlowVisualization() {
         <p className="italic">Any policy denies → immediate rejection</p>
       </div>
     </div>
-  )
+  );
 } 

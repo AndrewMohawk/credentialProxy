@@ -1,7 +1,7 @@
-import { DashboardShell } from "@/components/dashboard-shell"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { SystemStatus } from "@/components/system-status"
-import { GlassCard } from "@/components/glass-card"
+import { DashboardShell } from '@/components/dashboard-shell';
+import { DashboardHeader } from '@/components/dashboard-header';
+import { SystemStatus } from '@/components/system-status';
+import { GlassCard } from '@/components/glass-card';
 
 export default function SystemStatusPage() {
   return (
@@ -11,6 +11,6 @@ export default function SystemStatusPage() {
         <SystemStatus />
       </GlassCard>
     </DashboardShell>
-  )
+  );
 }
 

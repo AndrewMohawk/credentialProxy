@@ -1,6 +1,6 @@
-"use client"
+'use client';
 
-import * as React from "react"
+import * as React from 'react';
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -11,12 +11,12 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
-} from "@tanstack/react-table"
-import { ArrowUpDown, MoreHorizontal, Search } from "lucide-react"
-import { useRouter } from "next/navigation"
+} from '@tanstack/react-table';
+import { ArrowUpDown, MoreHorizontal, Search } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,17 +24,17 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { useToast } from "@/components/ui/use-toast"
-import apiClient from "@/lib/api-client"
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/components/ui/use-toast';
+import apiClient from '@/lib/api-client';
 
 export type Credential = {
   id: string
   name: string
-  type: "OAUTH" | "API_KEY" | "ETHEREUM_KEY" | "OTHER"
+  type: 'OAUTH' | 'API_KEY' | 'ETHEREUM_KEY' | 'OTHER'
   data: {
     type: string
     masked: boolean
@@ -46,7 +46,7 @@ export type Credential = {
 
 export const columns = (onCredentialDeleted?: () => void): ColumnDef<Credential>[] => [
   {
-    id: "select",
+    id: 'select',
     header: ({ table }) => (
       <Checkbox
         checked={table.getIsAllPageRowsSelected()}
@@ -65,69 +65,69 @@ export const columns = (onCredentialDeleted?: () => void): ColumnDef<Credential>
     enableHiding: false,
   },
   {
-    accessorKey: "name",
+    accessorKey: 'name',
     header: ({ column }) => {
       return (
         <Button
           variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
           Name
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
-      )
+      );
     },
-    cell: ({ row }) => <div className="font-medium">{row.getValue("name")}</div>,
+    cell: ({ row }) => <div className="font-medium">{row.getValue('name')}</div>,
   },
   {
-    accessorKey: "type",
-    header: "Type",
+    accessorKey: 'type',
+    header: 'Type',
     cell: ({ row }) => {
-      const type = row.getValue("type") as string
+      const type = row.getValue('type') as string;
       return (
         <Badge variant="outline">
-          {type.replace("_", " ")}
+          {type.replace('_', ' ')}
         </Badge>
-      )
+      );
     },
   },
   {
-    accessorKey: "isEnabled",
-    header: "Status",
+    accessorKey: 'isEnabled',
+    header: 'Status',
     cell: ({ row }) => {
-      const isEnabled = row.getValue("isEnabled") as boolean
+      const isEnabled = row.getValue('isEnabled') as boolean;
       return (
-        <Badge variant={isEnabled ? "default" : "secondary"}>
-          {isEnabled ? "Enabled" : "Disabled"}
+        <Badge variant={isEnabled ? 'default' : 'secondary'}>
+          {isEnabled ? 'Enabled' : 'Disabled'}
         </Badge>
-      )
+      );
     },
   },
   {
-    accessorKey: "createdAt",
-    header: "Created",
+    accessorKey: 'createdAt',
+    header: 'Created',
     cell: ({ row }) => {
-      const date = new Date(row.getValue("createdAt"))
-      return <div>{date.toLocaleDateString()}</div>
+      const date = new Date(row.getValue('createdAt'));
+      return <div>{date.toLocaleDateString()}</div>;
     },
   },
   {
-    accessorKey: "updatedAt",
-    header: "Updated",
+    accessorKey: 'updatedAt',
+    header: 'Updated',
     cell: ({ row }) => {
-      const date = new Date(row.getValue("updatedAt"))
-      return <div>{date.toLocaleDateString()}</div>
+      const date = new Date(row.getValue('updatedAt'));
+      return <div>{date.toLocaleDateString()}</div>;
     },
   },
   {
-    id: "actions",
+    id: 'actions',
     cell: ({ row }) => {
-      const credential = row.original
-      const { toast } = useToast()
-      const router = useRouter()
+      const credential = row.original;
+      const { toast } = useToast();
+      const router = useRouter();
 
       function navigateToPolicies() {
-        router.push(`/policies?credential=${credential.id}`)
+        router.push(`/policies?credential=${credential.id}`);
       }
 
       return (
@@ -154,7 +154,7 @@ export const columns = (onCredentialDeleted?: () => void): ColumnDef<Credential>
               const action = credential.isEnabled ? 'disable' : 'enable';
               performCredentialAction(credential.id, action, toast, onCredentialDeleted);
             }}>
-              {credential.isEnabled ? "Disable" : "Enable"} Credential
+              {credential.isEnabled ? 'Disable' : 'Enable'} Credential
             </DropdownMenuItem>
             <DropdownMenuItem
               className="text-red-600"
@@ -164,10 +164,10 @@ export const columns = (onCredentialDeleted?: () => void): ColumnDef<Credential>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      )
+      );
     },
   },
-]
+];
 
 // Function to delete a credential
 const deleteCredential = async (
@@ -181,21 +181,21 @@ const deleteCredential = async (
     
     if (response.success) {
       toast({
-        title: "Credential deleted",
+        title: 'Credential deleted',
         description: `${credentialName} has been deleted successfully.`,
       });
       
       // Refresh the credentials list
       onCredentialDeleted?.();
     } else {
-      throw new Error(response.error || "Failed to delete credential");
+      throw new Error(response.error || 'Failed to delete credential');
     }
   } catch (error: any) {
-    console.error("Error deleting credential:", error);
+    console.error('Error deleting credential:', error);
     toast({
-      variant: "destructive",
-      title: "Error",
-      description: error.message || "Failed to delete credential. Please try again.",
+      variant: 'destructive',
+      title: 'Error',
+      description: error.message || 'Failed to delete credential. Please try again.',
     });
   }
 };
@@ -212,7 +212,7 @@ const performCredentialAction = async (
     
     if (response.success) {
       toast({
-        title: "Action successful",
+        title: 'Action successful',
         description: `${action.charAt(0).toUpperCase() + action.slice(1)} action completed successfully.`,
       });
       
@@ -224,8 +224,8 @@ const performCredentialAction = async (
   } catch (error: any) {
     console.error(`Error performing ${action}:`, error);
     toast({
-      variant: "destructive",
-      title: "Error",
+      variant: 'destructive',
+      title: 'Error',
       description: error.message || `Failed to ${action} credential. Please try again.`,
     });
   }
@@ -237,9 +237,9 @@ interface CredentialsTableProps {
 }
 
 export function CredentialsTable({ data, onCredentialDeleted }: CredentialsTableProps) {
-  const [sorting, setSorting] = React.useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
-  const [rowSelection, setRowSelection] = React.useState({})
+  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [rowSelection, setRowSelection] = React.useState({});
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [actioningId, setActioningId] = React.useState<string | null>(null);
   const { toast } = useToast();
@@ -259,7 +259,7 @@ export function CredentialsTable({ data, onCredentialDeleted }: CredentialsTable
       columnFilters,
       rowSelection,
     },
-  })
+  });
 
   return (
     <div className="space-y-4">
@@ -267,9 +267,9 @@ export function CredentialsTable({ data, onCredentialDeleted }: CredentialsTable
         <div className="flex items-center gap-2">
           <Input
             placeholder="Filter credentials..."
-            value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
+            value={(table.getColumn('name')?.getFilterValue() as string) ?? ''}
             onChange={(event) =>
-              table.getColumn("name")?.setFilterValue(event.target.value)
+              table.getColumn('name')?.setFilterValue(event.target.value)
             }
             className="max-w-sm"
           />
@@ -294,11 +294,11 @@ export function CredentialsTable({ data, onCredentialDeleted }: CredentialsTable
                       {header.isPlaceholder
                         ? null
                         : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                     </TableHead>
-                  )
+                  );
                 })}
               </TableRow>
             ))}
@@ -308,7 +308,7 @@ export function CredentialsTable({ data, onCredentialDeleted }: CredentialsTable
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
+                  data-state={row.getIsSelected() && 'selected'}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
@@ -335,7 +335,7 @@ export function CredentialsTable({ data, onCredentialDeleted }: CredentialsTable
       </div>
       <div className="flex items-center justify-end space-x-2">
         <div className="text-muted-foreground flex-1 text-sm">
-          {table.getFilteredSelectedRowModel().rows.length} of{" "}
+          {table.getFilteredSelectedRowModel().rows.length} of{' '}
           {table.getFilteredRowModel().rows.length} row(s) selected.
         </div>
         <div className="space-x-2">
@@ -358,6 +358,6 @@ export function CredentialsTable({ data, onCredentialDeleted }: CredentialsTable
         </div>
       </div>
     </div>
-  )
+  );
 }
 

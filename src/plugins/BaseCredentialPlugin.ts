@@ -1,4 +1,5 @@
 import { Request } from 'express';
+import { OperationMetadata, PolicyBlueprint, OperationRiskAssessment } from './CredentialPlugin';
 
 /**
  * Abstract base class for credential plugins
@@ -48,6 +49,9 @@ export interface PluginMetadata {
 export abstract class BaseCredentialPlugin {
   abstract readonly config: CredentialPluginConfig;
   abstract readonly metadata: PluginMetadata;
+  
+  // Allow for potential supportedOperations property in subclasses
+  protected supportedOperations?: OperationMetadata[];
 
   /**
    * Validate credential data before saving
@@ -103,6 +107,93 @@ export abstract class BaseCredentialPlugin {
     // Default implementation throws an error
     // Override this in subclasses to support specific operations
     throw new Error(`Operation ${operation} not supported by plugin ${this.getId()}`);
+  }
+
+  /**
+   * Get policy blueprints - complete policy configurations with safe defaults
+   * Default implementation returns an empty array
+   * @returns Array of policy blueprints for this credential type
+   */
+  getPolicyBlueprints(): PolicyBlueprint[] {
+    return [];
+  }
+  
+  /**
+   * Get operations that can be performed with this credential type
+   * Default implementation creates a map from the supportedOperations array
+   * @returns Map of operation name to operation metadata
+   */
+  getOperationsMap(): Map<string, OperationMetadata> {
+    const map = new Map<string, OperationMetadata>();
+    
+    // Use the supportedOperations if available
+    if (this.supportedOperations && Array.isArray(this.supportedOperations)) {
+      for (const operation of this.supportedOperations) {
+        map.set(operation.name, operation);
+      }
+    }
+    
+    return map;
+  }
+  
+  /**
+   * Get risk assessment for specific credential configuration and operation
+   * Default implementation returns a basic risk assessment
+   * @param credentialData The credential data
+   * @param operation The operation to assess
+   * @returns Risk assessment with score and explanation
+   */
+  async assessOperationRisk(
+    credentialData: Record<string, any>,
+    operation: string
+  ): Promise<OperationRiskAssessment> {
+    // Get the operation metadata if it exists
+    const operationsMap = this.getOperationsMap();
+    const operationMetadata = operationsMap.get(operation);
+    
+    // Default risk score and factors
+    const score = operationMetadata?.riskLevel ?? 5;
+    const factors = [
+      `Operation '${operation}' has a base risk level of ${score}.`,
+      'No additional risk factors were assessed by the plugin.'
+    ];
+    
+    return {
+      score,
+      factors,
+      recommendations: this.getPolicyBlueprints().filter(blueprint => 
+        blueprint.targetOperations?.includes(operation) || 
+        blueprint.riskLevel >= score - 2
+      )
+    };
+  }
+
+  /**
+   * Create a policy blueprint with default values
+   * Utility method to make it easier for plugins to create blueprints
+   * @param blueprint Partial blueprint definition
+   * @returns Complete policy blueprint
+   */
+  protected createPolicyBlueprint(blueprint: Partial<PolicyBlueprint>): PolicyBlueprint {
+    return {
+      id: blueprint.id || `${this.getId()}-policy-${Date.now()}`,
+      name: blueprint.name || 'Unnamed Policy',
+      description: blueprint.description || 'No description provided',
+      type: blueprint.type!,
+      configuration: blueprint.configuration || {},
+      customizationSchema: blueprint.customizationSchema || {},
+      securityLevel: blueprint.securityLevel || 'standard',
+      riskLevel: blueprint.riskLevel || 5,
+      explanation: blueprint.explanation || ['This policy has no detailed explanation.'],
+      recommendedFor: blueprint.recommendedFor || [this.getType()],
+      targetOperations: blueprint.targetOperations,
+      incompatibleWith: blueprint.incompatibleWith,
+      metadata: blueprint.metadata || {
+        category: 'General',
+        difficulty: 'intermediate',
+        tags: [this.getType(), blueprint.type?.toString().toLowerCase() || 'policy']
+      }
+    };
   }
 
   /**

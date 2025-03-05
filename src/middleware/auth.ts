@@ -127,4 +127,7 @@ export async function authenticateJWT(req: Request, res: Response, next: NextFun
     logger.error(`Authentication error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     res.status(500).json({ message: 'Internal server error during authentication' });
   }
-} 
+}
+
+// Export authMiddleware as an alias for authenticateJWT for backward compatibility
+export const authMiddleware = authenticateJWT; 

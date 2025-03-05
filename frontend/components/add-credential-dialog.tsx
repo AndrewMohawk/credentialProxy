@@ -1,13 +1,13 @@
-"use client"
+'use client';
 
-import * as React from "react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
-import { Loader2, Plus } from "lucide-react"
-import { useRouter } from "next/navigation"
+import * as React from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Loader2, Plus } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
-import { Button } from "@/components/ui/button"
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from '@/components/ui/dialog';
 import {
   Form,
   FormControl,
@@ -25,94 +25,94 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { useToast } from "@/components/ui/use-toast"
-import { useAuth } from "@/hooks/use-auth"
-import apiClient from "@/lib/api-client"
+} from '@/components/ui/select';
+import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/hooks/use-auth';
+import apiClient from '@/lib/api-client';
 
 // Dynamic schema will be created based on available types
 const baseCredentialFormSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, 'Name is required'),
   data: z.record(z.any()).optional(),
-})
+});
 
 // Define the dynamic fields for each credential type
 const credentialTypeFields: Record<string, Array<{ name: string; label: string; type: string; description?: string; options?: string[] }>> = {
   API_KEY: [
     {
-      name: "apiKey",
-      label: "API Key",
-      type: "password",
-      description: "Enter your API key"
+      name: 'apiKey',
+      label: 'API Key',
+      type: 'password',
+      description: 'Enter your API key'
     }
   ],
   OAUTH: [
     {
-      name: "provider",
-      label: "OAuth Provider",
-      type: "select",
-      options: ["github", "google", "facebook", "custom"],
-      description: "Select the OAuth provider"
+      name: 'provider',
+      label: 'OAuth Provider',
+      type: 'select',
+      options: ['github', 'google', 'facebook', 'custom'],
+      description: 'Select the OAuth provider'
     },
     {
-      name: "clientId",
-      label: "Client ID",
-      type: "text",
-      description: "OAuth client ID"
+      name: 'clientId',
+      label: 'Client ID',
+      type: 'text',
+      description: 'OAuth client ID'
     },
     {
-      name: "clientSecret",
-      label: "Client Secret",
-      type: "password",
-      description: "OAuth client secret"
+      name: 'clientSecret',
+      label: 'Client Secret',
+      type: 'password',
+      description: 'OAuth client secret'
     },
     {
-      name: "scope",
-      label: "Scope (Optional)",
-      type: "text",
-      description: "OAuth scopes (space-separated)"
+      name: 'scope',
+      label: 'Scope (Optional)',
+      type: 'text',
+      description: 'OAuth scopes (space-separated)'
     },
     // Custom provider fields will be conditionally rendered
   ],
   ETHEREUM_KEY: [
     {
-      name: "privateKey",
-      label: "Private Key",
-      type: "password",
-      description: "Ethereum private key (encrypted)"
+      name: 'privateKey',
+      label: 'Private Key',
+      type: 'password',
+      description: 'Ethereum private key (encrypted)'
     },
     {
-      name: "address",
-      label: "Address",
-      type: "text",
-      description: "Ethereum address"
+      name: 'address',
+      label: 'Address',
+      type: 'text',
+      description: 'Ethereum address'
     }
   ],
   COOKIE: [
     {
-      name: "cookies",
-      label: "Cookies",
-      type: "textarea",
-      description: "JSON formatted cookies object or cookie string"
+      name: 'cookies',
+      label: 'Cookies',
+      type: 'textarea',
+      description: 'JSON formatted cookies object or cookie string'
     }
   ],
   OTHER: [
     {
-      name: "data",
-      label: "Credential Data",
-      type: "text",
-      description: "Enter the credential data"
+      name: 'data',
+      label: 'Credential Data',
+      type: 'text',
+      description: 'Enter the credential data'
     }
   ]
-}
+};
 
 interface CredentialType {
   id: string;
@@ -125,20 +125,20 @@ interface AddCredentialDialogProps {
 }
 
 export function AddCredentialDialog({ onCredentialAdded }: AddCredentialDialogProps) {
-  const [open, setOpen] = React.useState(false)
-  const [isLoading, setIsLoading] = React.useState(false)
-  const [credentialTypes, setCredentialTypes] = React.useState<CredentialType[]>([])
-  const [isLoadingTypes, setIsLoadingTypes] = React.useState(false)
-  const router = useRouter()
-  const { toast } = useToast()
-  const { token } = useAuth()
+  const [open, setOpen] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [credentialTypes, setCredentialTypes] = React.useState<CredentialType[]>([]);
+  const [isLoadingTypes, setIsLoadingTypes] = React.useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
+  const { token } = useAuth();
 
   // Create a dynamic schema based on available types
   const credentialFormSchema = React.useMemo(() => {
     const typeEnum = z.enum(
       credentialTypes.length > 0 
         ? (credentialTypes.map(type => type.id) as [string, ...string[]]) 
-        : ["API_KEY"] // Fallback to API_KEY if no types loaded
+        : ['API_KEY'] // Fallback to API_KEY if no types loaded
     );
     
     return baseCredentialFormSchema.extend({
@@ -151,13 +151,13 @@ export function AddCredentialDialog({ onCredentialAdded }: AddCredentialDialogPr
   const form = useForm<CredentialFormValues>({
     resolver: zodResolver(credentialFormSchema),
     defaultValues: {
-      name: "",
-      type: credentialTypes.length > 0 ? credentialTypes[0]?.id : "API_KEY",
+      name: '',
+      type: credentialTypes.length > 0 ? credentialTypes[0]?.id : 'API_KEY',
       data: {},
     },
-  })
+  });
 
-  const credentialType = form.watch("type")
+  const credentialType = form.watch('type');
 
   // Fetch credential types when dialog opens
   React.useEffect(() => {
@@ -170,12 +170,12 @@ export function AddCredentialDialog({ onCredentialAdded }: AddCredentialDialogPr
     setIsLoadingTypes(true);
     try {
       if (!token) {
-        throw new Error("Not authenticated");
+        throw new Error('Not authenticated');
       }
 
       const response = await apiClient.get('/credentials/types');
       
-      console.log("Credential types response:", response);
+      console.log('Credential types response:', response);
       
       // Check the response structure
       if (response.success) {
@@ -190,21 +190,21 @@ export function AddCredentialDialog({ onCredentialAdded }: AddCredentialDialogPr
         
         // Set default value to the first type
         if (formattedTypes.length > 0) {
-          form.setValue("type", formattedTypes[0].id);
+          form.setValue('type', formattedTypes[0].id);
         }
       } else {
         // Fallback to hardcoded types
-        throw new Error("Invalid response format from API");
+        throw new Error('Invalid response format from API');
       }
     } catch (error) {
-      console.error("Error fetching credential types:", error);
+      console.error('Error fetching credential types:', error);
       // Fall back to hardcoded types
       setCredentialTypes([
-        { id: "API_KEY", name: "API Key", description: "API Key Credential" },
-        { id: "OAUTH", name: "OAuth", description: "OAuth Credential" },
-        { id: "COOKIE", name: "Cookie", description: "Cookie Credential" },
-        { id: "ETHEREUM_KEY", name: "Ethereum Key", description: "Ethereum Key Credential" },
-        { id: "OTHER", name: "Other", description: "Other Credential" }
+        { id: 'API_KEY', name: 'API Key', description: 'API Key Credential' },
+        { id: 'OAUTH', name: 'OAuth', description: 'OAuth Credential' },
+        { id: 'COOKIE', name: 'Cookie', description: 'Cookie Credential' },
+        { id: 'ETHEREUM_KEY', name: 'Ethereum Key', description: 'Ethereum Key Credential' },
+        { id: 'OTHER', name: 'Other', description: 'Other Credential' }
       ]);
     } finally {
       setIsLoadingTypes(false);
@@ -212,11 +212,11 @@ export function AddCredentialDialog({ onCredentialAdded }: AddCredentialDialogPr
   }
 
   async function onSubmit(data: CredentialFormValues) {
-    setIsLoading(true)
+    setIsLoading(true);
 
     try {
       if (!token) {
-        throw new Error("Not authenticated");
+        throw new Error('Not authenticated');
       }
       
       const response = await apiClient.post('/credentials', {
@@ -226,25 +226,25 @@ export function AddCredentialDialog({ onCredentialAdded }: AddCredentialDialogPr
       });
 
       if (!response.success) {
-        throw new Error(response.error || "Failed to create credential");
+        throw new Error(response.error || 'Failed to create credential');
       }
 
       toast({
-        title: "Success",
-        description: "Credential created successfully",
-      })
+        title: 'Success',
+        description: 'Credential created successfully',
+      });
 
-      setOpen(false)
-      form.reset()
-      onCredentialAdded?.()
+      setOpen(false);
+      form.reset();
+      onCredentialAdded?.();
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message || "Failed to create credential. Please try again.",
-        variant: "destructive",
-      })
+        title: 'Error',
+        description: error.message || 'Failed to create credential. Please try again.',
+        variant: 'destructive',
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
@@ -263,22 +263,22 @@ export function AddCredentialDialog({ onCredentialAdded }: AddCredentialDialogPr
     const redirectUri = `${frontendUrl}/api/oauth/callback`;
     
     // Collect all fields to render
-    let fieldsToRender = [...fields];
+    const fieldsToRender = [...fields];
     
     // Add custom provider fields if needed
     if (showCustomProviderFields) {
       fieldsToRender.push(
         {
-          name: "authorizationUrl",
-          label: "Authorization URL",
-          type: "text",
-          description: "The authorization URL for your custom OAuth provider"
+          name: 'authorizationUrl',
+          label: 'Authorization URL',
+          type: 'text',
+          description: 'The authorization URL for your custom OAuth provider'
         },
         {
-          name: "tokenUrl",
-          label: "Token URL",
-          type: "text", 
-          description: "The token URL for your custom OAuth provider"
+          name: 'tokenUrl',
+          label: 'Token URL',
+          type: 'text', 
+          description: 'The token URL for your custom OAuth provider'
         }
       );
     }
@@ -350,8 +350,8 @@ export function AddCredentialDialog({ onCredentialAdded }: AddCredentialDialogPr
                 onClick={() => {
                   navigator.clipboard.writeText(redirectUri);
                   toast({
-                    title: "Copied!",
-                    description: "Callback URI copied to clipboard",
+                    title: 'Copied!',
+                    description: 'Callback URI copied to clipboard',
                   });
                 }}
               >
@@ -453,7 +453,7 @@ export function AddCredentialDialog({ onCredentialAdded }: AddCredentialDialogPr
                     Saving...
                   </>
                 ) : (
-                  "Add Credential"
+                  'Add Credential'
                 )}
               </Button>
             </DialogFooter>

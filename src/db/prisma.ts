@@ -3,6 +3,7 @@ import { logger } from '../utils/logger';
 
 // Define the extended client type that includes Plugin
 declare global {
+  // eslint-disable-next-line no-var
   var prisma: PrismaClient | undefined;
 }
 
@@ -47,14 +48,13 @@ interface PrismaErrorEvent {
 
 // Log queries in development
 if (process.env.NODE_ENV !== 'production') {
-  // @ts-ignore - Prisma events are not properly typed
+  // @ts-expect-error - Prisma event system uses internal types not exposed in public API
   prisma.$on('query', (e: PrismaQueryEvent) => {
-    logger.debug(`Query: ${e.query}`);
-    logger.debug(`Duration: ${e.duration}ms`);
+    logger.debug(`Query: ${e.query} (${e.duration}ms)`);
   });
 }
 
-// @ts-ignore - Prisma events are not properly typed
+// @ts-expect-error - Prisma event system uses internal types not exposed in public API
 prisma.$on('error', (e: PrismaErrorEvent) => {
   logger.error(`Prisma Error: ${e.message}`);
 });

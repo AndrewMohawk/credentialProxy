@@ -1,6 +1,6 @@
-import { DashboardShell } from "@/components/dashboard-shell"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { PluginsGrid } from "@/components/plugins-grid"
+import { DashboardShell } from '@/components/dashboard-shell';
+import { DashboardHeader } from '@/components/dashboard-header';
+import { PluginsGrid } from '@/components/plugins-grid';
 
 export default function PluginsPage() {
   return (
@@ -8,6 +8,6 @@ export default function PluginsPage() {
       <DashboardHeader heading="Plugins" text="Manage credential type plugins." />
       <PluginsGrid />
     </DashboardShell>
-  )
+  );
 }
 

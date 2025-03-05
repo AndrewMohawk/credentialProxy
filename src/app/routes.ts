@@ -97,15 +97,17 @@ export const configureRoutes = (app: Express): void => {
     `);
   });
   
-  // Frontend static files in production
+  // Frontend is now served by Next.js, no need to serve static files from Express
   if (config.app.env === 'production') {
-    // Serve static files from the React app build directory
-    const publicPath = path.join(__dirname, '..', '..', 'public');
-    app.use(express.static(publicPath));
-
-    // Serve React app for all other routes in production
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(publicPath, 'index.html'));
+    // In production, API 404 responses for non-API routes
+    app.use((req, res, next) => {
+      if (!req.path.startsWith(apiPrefix)) {
+        res.status(404).json({ 
+          message: `Route not found. The frontend is now served separately by Next.js.` 
+        });
+        return;
+      }
+      next();
     });
   } else {
     // In development, API 404 responses for non-API routes

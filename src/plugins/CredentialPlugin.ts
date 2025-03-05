@@ -43,6 +43,83 @@ export interface OperationMetadata {
 }
 
 /**
+ * Complete policy configuration with safe defaults
+ */
+export interface PolicyBlueprint {
+  /**
+   * Unique identifier for the blueprint
+   */
+  id: string;
+  
+  /**
+   * Human-readable name for the blueprint
+   */
+  name: string;
+  
+  /**
+   * Detailed description of what the policy does
+   */
+  description: string;
+  
+  /**
+   * The type of policy
+   */
+  type: PolicyType;
+  
+  /**
+   * Complete configuration for the policy
+   */
+  configuration: Record<string, any>;
+  
+  /**
+   * Schema for customizable fields in the configuration
+   * Uses JSON Schema format
+   */
+  customizationSchema: Record<string, any>;
+  
+  /**
+   * Level of security provided by this policy
+   */
+  securityLevel: 'basic' | 'standard' | 'high';
+  
+  /**
+   * Numeric risk level (1-10)
+   */
+  riskLevel: number;
+  
+  /**
+   * Human-readable explanations of what this policy does
+   */
+  explanation: string[];
+  
+  /**
+   * Credential types this policy is recommended for
+   */
+  recommendedFor: string[];
+  
+  /**
+   * Operations this policy is particularly effective for
+   */
+  targetOperations?: string[];
+  
+  /**
+   * Other policy IDs this shouldn't be used with
+   */
+  incompatibleWith?: string[];
+  
+  /**
+   * Metadata for UI display or categorization
+   */
+  metadata?: {
+    category?: string;
+    icon?: string;
+    difficulty?: 'beginner' | 'intermediate' | 'advanced';
+    tags?: string[];
+    [key: string]: any;
+  };
+}
+
+/**
  * Risk assessment information for a credential type
  */
 export interface RiskAssessment {
@@ -106,6 +183,40 @@ export interface PolicyTemplate {
   configuration: Record<string, any>;
   riskLevel: number;
   recommendedFor: string[]; // Operation names
+}
+
+/**
+ * Result of a risk assessment for an operation
+ */
+export interface OperationRiskAssessment {
+  /**
+   * Overall risk score (1-10)
+   */
+  score: number;
+  
+  /**
+   * Explanation of factors affecting the risk score
+   */
+  factors: string[];
+  
+  /**
+   * Recommended policies to mitigate risk
+   */
+  recommendations: PolicyBlueprint[];
+  
+  /**
+   * Detailed breakdown of the risk assessment
+   */
+  details?: {
+    credentialRisk: number;
+    operationRisk: number;
+    contextRisk: number;
+    mitigations: Array<{
+      type: string;
+      impact: number;
+      description: string;
+    }>;
+  };
 }
 
 /**
@@ -201,4 +312,28 @@ export interface CredentialPlugin {
    * Initialize the plugin with any necessary setup
    */
   initialize?: () => Promise<void>;
+
+  /**
+   * Get policy blueprints - complete policy configurations with safe defaults
+   * @returns Array of policy blueprints for this credential type
+   */
+  getPolicyBlueprints(): PolicyBlueprint[];
+  
+  /**
+   * Get operations that can be performed with this credential type
+   * Includes detailed metadata about each operation
+   * @returns Map of operation name to operation metadata
+   */
+  getOperationsMap(): Map<string, OperationMetadata>;
+  
+  /**
+   * Get risk assessment for specific credential configuration and operation
+   * @param credentialData The credential data
+   * @param operation The operation to assess
+   * @returns Risk assessment with score and explanation
+   */
+  assessOperationRisk(
+    credentialData: Record<string, any>,
+    operation: string
+  ): Promise<OperationRiskAssessment>;
 } 

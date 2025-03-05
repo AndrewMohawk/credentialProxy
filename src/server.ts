@@ -1,32 +1,24 @@
+/**
+ * Server Entry Point
+ * 
+ * This module is the main entry point for the application.
+ * It initializes and starts the CredentialProxy service.
+ */
+
 import { app } from './app/app';
 import { logger } from './utils/logger';
-import { config } from './config';
-import { initProxyQueueProcessor } from './services/proxyQueueProcessor';
-import { initializePlugins } from './plugins';
-import { setupSwagger } from './docs';
+import { getCredentialProxy } from './core/CredentialProxy';
 
 /**
  * Start the server
  */
 const startServer = async () => {
   try {
-    // Initialize plugins
-    await initializePlugins();
+    // Get the CredentialProxy instance and start it
+    const credentialProxy = getCredentialProxy();
+    await credentialProxy.start();
     
-    // Initialize proxy queue processor
-    initProxyQueueProcessor();
-    
-    // Setup Swagger documentation
-    setupSwagger(app);
-    
-    // Start the server if not in test environment
-    if (config.app.env !== 'test') {
-      const PORT = config.app.port;
-      app.listen(PORT, () => {
-        logger.info(`Server running on port ${PORT} in ${config.app.env} mode`);
-        logger.info(`API endpoints available at ${config.app.apiPrefix}`);
-      });
-    }
+    logger.info('Server started successfully');
   } catch (error) {
     logger.error('Failed to start server:', error);
     process.exit(1);

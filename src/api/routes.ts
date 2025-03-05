@@ -10,9 +10,12 @@ import { auditRoutes } from './routes/audit.routes';
 import { preApprovedKeysRoutes } from './routes/pre-approved-keys.routes';
 import { dashboardRoutes } from './routes/dashboard.routes';
 import pluginRoutes from './routes/plugin.routes';
+import { createPolicyBlueprintRoutes } from './routes/policyBlueprintRoutes';
+import { createPolicyManagementRoutes } from './routes/policyManagementRoutes';
 import { logger } from '../utils/logger';
 import { PrismaClient } from '@prisma/client';
 import { authenticateJWT } from '../middleware/auth';
+import { PluginManager } from '../plugins/PluginManager';
 
 // Create a Prisma client instance
 const prisma = new PrismaClient();
@@ -20,7 +23,7 @@ const prisma = new PrismaClient();
 /**
  * Configure all API routes for the application
  */
-export const configureRoutes = (app: Express): void => {
+export const configureRoutes = (app: Express, pluginManager: PluginManager): void => {
   const apiPrefix = config.app.apiPrefix;
   
   logger.info(`Setting up routes with API prefix: ${apiPrefix}`);
@@ -42,6 +45,8 @@ export const configureRoutes = (app: Express): void => {
   app.use(`${apiPrefix}/pre-approved-keys`, preApprovedKeysRoutes);
   app.use(`${apiPrefix}/dashboard`, dashboardRoutes);
   app.use(`${apiPrefix}/plugins`, pluginRoutes);
+  app.use(`${apiPrefix}/policy-blueprints`, createPolicyBlueprintRoutes(pluginManager));
+  app.use(`${apiPrefix}`, createPolicyManagementRoutes(pluginManager));
   
   // Also keep the /api/plugins endpoint (pointing to the same routes) for backward compatibility
   app.use('/api/plugins', pluginRoutes);

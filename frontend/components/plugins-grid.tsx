@@ -1,51 +1,51 @@
-"use client"
+'use client';
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Key, Wallet, Database, Lock, PowerOff, Power, Github } from "lucide-react"
-import { useState } from "react"
-import { useToast } from "@/components/ui/use-toast"
-import { Skeleton } from "@/components/ui/skeleton"
-import { usePlugins, Plugin } from "@/hooks/plugins/use-plugins"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Key, Wallet, Database, Lock, PowerOff, Power, Github } from 'lucide-react';
+import { useState } from 'react';
+import { useToast } from '@/components/ui/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
+import { usePlugins, Plugin } from '@/hooks/plugins/use-plugins';
 
 export function PluginsGrid() {
-  const { toast } = useToast()
-  const { plugins, isLoading, error, refreshPlugins, togglePluginStatus } = usePlugins()
-  const [actionInProgress, setActionInProgress] = useState<string | null>(null)
+  const { toast } = useToast();
+  const { plugins, isLoading, error, refreshPlugins, togglePluginStatus } = usePlugins();
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
   const handleToggleStatus = async (plugin: Plugin) => {
-    if (!plugin.id) return
+    if (!plugin.id) return;
 
-    setActionInProgress(plugin.id)
+    setActionInProgress(plugin.id);
     try {
-      const result = await togglePluginStatus(plugin.id, !plugin.enabled)
+      const result = await togglePluginStatus(plugin.id, !plugin.enabled);
       
       if (!result) {
         // The hook already shows an error toast, but we might want to add additional handling here
-        console.error("Failed to toggle plugin status")
+        console.error('Failed to toggle plugin status');
       }
     } finally {
-      setActionInProgress(null)
+      setActionInProgress(null);
     }
-  }
+  };
 
   const getPluginIcon = (type: string | undefined) => {
-    if (!type) return <Key className="h-5 w-5" />
+    if (!type) return <Key className="h-5 w-5" />;
     
     switch(type.toUpperCase()) {
-      case 'API_KEY':
-        return <Key className="h-5 w-5" />
-      case 'OAUTH':
-        return <Lock className="h-5 w-5" />
-      case 'AWS':
-        return <Database className="h-5 w-5" />
-      case 'GITHUB':
-        return <Github className="h-5 w-5" />
-      default:
-        return <Key className="h-5 w-5" />
+    case 'API_KEY':
+      return <Key className="h-5 w-5" />;
+    case 'OAUTH':
+      return <Lock className="h-5 w-5" />;
+    case 'AWS':
+      return <Database className="h-5 w-5" />;
+    case 'GITHUB':
+      return <Github className="h-5 w-5" />;
+    default:
+      return <Key className="h-5 w-5" />;
     }
-  }
+  };
 
   if (isLoading) {
     return (
@@ -81,7 +81,7 @@ export function PluginsGrid() {
           </Card>
         ))}
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -97,7 +97,7 @@ export function PluginsGrid() {
           Try Again
         </Button>
       </div>
-    )
+    );
   }
 
   if (plugins.length === 0) {
@@ -106,7 +106,7 @@ export function PluginsGrid() {
         <h3 className="font-semibold">No Plugins Found</h3>
         <p>No credential plugins are currently available.</p>
       </div>
-    )
+    );
   }
 
   return (
@@ -134,15 +134,15 @@ export function PluginsGrid() {
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Status</span>
-                <Badge variant={plugin.enabled ? "default" : "outline"}>
-                  {plugin.enabled ? "Enabled" : "Disabled"}
+                <Badge variant={plugin.enabled ? 'default' : 'outline'}>
+                  {plugin.enabled ? 'Enabled' : 'Disabled'}
                 </Badge>
               </div>
             </div>
           </CardContent>
           <CardFooter>
             <Button 
-              variant={plugin.enabled ? "destructive" : "default"} 
+              variant={plugin.enabled ? 'destructive' : 'default'} 
               className="w-full"
               onClick={() => handleToggleStatus(plugin)}
               disabled={actionInProgress === plugin.id}
@@ -175,6 +175,6 @@ export function PluginsGrid() {
         </Card>
       ))}
     </div>
-  )
+  );
 }
 

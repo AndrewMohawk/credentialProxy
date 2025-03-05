@@ -1,15 +1,15 @@
-"use client"
+'use client';
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { Shield, Activity, AlarmClock, HeartPulse, Lock } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { useAuth } from "@/hooks/use-auth"
-import apiClient from "@/lib/api-client"
-import { useToast } from "@/components/ui/use-toast"
-import { DashboardShell } from "@/components/dashboard-shell"
-import { DashboardHeader } from "@/components/dashboard-header" 
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Shield, Activity, AlarmClock, HeartPulse, Lock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/hooks/use-auth';
+import apiClient from '@/lib/api-client';
+import { useToast } from '@/components/ui/use-toast';
+import { DashboardShell } from '@/components/dashboard-shell';
+import { DashboardHeader } from '@/components/dashboard-header'; 
 import { formatDistanceToNow } from 'date-fns';
 
 // Define metric types
@@ -53,9 +53,9 @@ function formatTimeAgo(dateString: string) {
 
 // Helper function to format details that could be an object or string
 function formatDetails(details: any): string {
-  if (!details) return "";
+  if (!details) return '';
   
-  if (typeof details === "string") {
+  if (typeof details === 'string') {
     try {
       // Try to parse if it's a stringified JSON
       const parsed = JSON.parse(details);
@@ -64,7 +64,7 @@ function formatDetails(details: any): string {
       // If not parseable, return as is
       return details;
     }
-  } else if (typeof details === "object") {
+  } else if (typeof details === 'object') {
     return formatDetailsObject(details);
   }
   
@@ -72,66 +72,66 @@ function formatDetails(details: any): string {
 }
 
 function formatDetailsObject(obj: any): string {
-  if (!obj) return "";
+  if (!obj) return '';
   
   // Special case for login/logout events
   if (obj.method && obj.username) {
     // For authentication events, return a more descriptive message
-    const eventType = obj.action || "Authentication";
+    const eventType = obj.action || 'Authentication';
     return `${eventType} event (${obj.method}) for user ${obj.username}`;
   }
   
   // General case - convert object to readable string
   return Object.entries(obj)
     .map(([key, value]) => `${key}: ${value}`)
-    .join(", ");
+    .join(', ');
 }
 
 export default function Home() {
-  const { isAuthenticated, user, isLoading, logout, token } = useAuth()
-  const router = useRouter()
-  const { toast } = useToast()
-  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
-  const [isLoadingMetrics, setIsLoadingMetrics] = useState(true)
+  const { isAuthenticated, user, isLoading, logout, token } = useAuth();
+  const router = useRouter();
+  const { toast } = useToast();
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [isLoadingMetrics, setIsLoadingMetrics] = useState(true);
 
   // Get backend configuration from environment variables or use defaults
   const BACKEND_PORT = process.env.NEXT_PUBLIC_BACKEND_PORT || '4242';
   const BACKEND_HOST = process.env.NEXT_PUBLIC_BACKEND_HOST || 'localhost';
   // API URL from environment variables or default with configurable host and port
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || `http://${BACKEND_HOST}:${BACKEND_PORT}/api/v1`
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || `http://${BACKEND_HOST}:${BACKEND_PORT}/api/v1`;
 
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/login")
+      router.push('/login');
     }
-  }, [isLoading, isAuthenticated, router])
+  }, [isLoading, isAuthenticated, router]);
 
   // Fetch dashboard metrics when component mounts and user is authenticated
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
-      fetchDashboardMetrics()
+      fetchDashboardMetrics();
     }
-  }, [isAuthenticated, isLoading])
+  }, [isAuthenticated, isLoading]);
 
   // Function to fetch dashboard metrics
   const fetchDashboardMetrics = async () => {
-    setIsLoadingMetrics(true)
+    setIsLoadingMetrics(true);
     try {
       const response = await apiClient.get('/dashboard/metrics');
       
       if (response.success) {
-        setMetrics(response.data)
+        setMetrics(response.data);
       } else {
-        throw new Error(response.error || "Failed to fetch dashboard metrics")
+        throw new Error(response.error || 'Failed to fetch dashboard metrics');
       }
     } catch (error: any) {
-      console.error("Error fetching dashboard metrics:", error)
+      console.error('Error fetching dashboard metrics:', error);
       toast({
-        variant: "destructive",
-        title: "Error fetching dashboard metrics",
-        description: error.message || "An error occurred while fetching dashboard metrics."
-      })
+        variant: 'destructive',
+        title: 'Error fetching dashboard metrics',
+        description: error.message || 'An error occurred while fetching dashboard metrics.'
+      });
       // Initialize with empty metrics in case of error
       setMetrics({
         credentialCount: 0,
@@ -143,11 +143,11 @@ export default function Home() {
           credentialStoreStatus: false,
           queueStatus: false
         }
-      })
+      });
     } finally {
-      setIsLoadingMetrics(false)
+      setIsLoadingMetrics(false);
     }
-  }
+  };
 
   // Show loading state if still checking authentication
   if (isLoading) {
@@ -158,12 +158,12 @@ export default function Home() {
           <p className="text-muted-foreground">Loading dashboard...</p>
         </div>
       </div>
-    )
+    );
   }
 
   // Show nothing if not authenticated (will be redirected)
   if (!isAuthenticated) {
-    return null
+    return null;
   }
 
   return (
@@ -216,7 +216,7 @@ export default function Home() {
               </p>
             </CardContent>
             <CardFooter>
-              <Button variant="outline" onClick={() => router.push("/credentials")}>
+              <Button variant="outline" onClick={() => router.push('/credentials')}>
                 View credentials
               </Button>
             </CardFooter>
@@ -236,7 +236,7 @@ export default function Home() {
               </p>
             </CardContent>
             <CardFooter>
-              <Button variant="outline" onClick={() => router.push("/applications")}>
+              <Button variant="outline" onClick={() => router.push('/applications')}>
                 Manage applications
               </Button>
             </CardFooter>
@@ -256,7 +256,7 @@ export default function Home() {
               </p>
             </CardContent>
             <CardFooter>
-              <Button variant="outline" onClick={() => router.push("/policies")}>
+              <Button variant="outline" onClick={() => router.push('/policies')}>
                 View policies
               </Button>
             </CardFooter>
@@ -294,11 +294,11 @@ export default function Home() {
                     </div>
                     <div className="flex-1 space-y-1">
                       <p className="text-sm font-medium leading-none">
-                        {activity.action && activity.action !== "-" 
-                          ? `${activity.action}${activity.target && activity.target !== "-" ? ` - ${activity.target}` : ""}`
-                          : (activity.details && typeof activity.details === "object" && (activity.details as any).method 
-                              ? "Authentication Event" 
-                              : "System Event")}
+                        {activity.action && activity.action !== '-' 
+                          ? `${activity.action}${activity.target && activity.target !== '-' ? ` - ${activity.target}` : ''}`
+                          : (activity.details && typeof activity.details === 'object' && (activity.details as any).method 
+                            ? 'Authentication Event' 
+                            : 'System Event')}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {formatDetails(activity.details)}
@@ -368,7 +368,7 @@ export default function Home() {
                 </div>
                 
                 <div className="pt-4">
-                  <Button variant="outline" className="w-full" onClick={() => router.push("/system-status")}>
+                  <Button variant="outline" className="w-full" onClick={() => router.push('/system-status')}>
                     View detailed status
                   </Button>
                 </div>
@@ -378,6 +378,6 @@ export default function Home() {
         </Card>
       </div>
     </DashboardShell>
-  )
+  );
 }
 

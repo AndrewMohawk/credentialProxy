@@ -1,4 +1,4 @@
-import type React from "react"
+import type React from 'react';
 
 export const PulseAnimation: React.FC = () => {
   return (
@@ -6,6 +6,6 @@ export const PulseAnimation: React.FC = () => {
       <div className="absolute w-32 h-32 bg-green-500 rounded-full opacity-75 animate-ping" />
       <div className="absolute w-32 h-32 bg-green-500 rounded-full opacity-75 animate-pulse" />
     </div>
-  )
-}
+  );
+};
 

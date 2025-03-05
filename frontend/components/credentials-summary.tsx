@@ -1,4 +1,4 @@
-import { Key } from "lucide-react"
+import { Key } from 'lucide-react';
 
 export function CredentialsSummary() {
   return (
@@ -25,6 +25,6 @@ export function CredentialsSummary() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 

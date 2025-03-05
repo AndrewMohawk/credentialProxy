@@ -52,70 +52,71 @@ export const getDashboardMetrics = async (req: Request, res: Response) => {
     // Format recent activity for better display
     const recentActivity = recentAuditEvents.map(event => {
       // Set default action and target
-      let action = "Unknown Event";
-      let target = "-";
+      let action = 'Unknown Event';
+      let target = '-';
       
       // Format based on event type
       switch (event.type) {
-        case 'user_login':
-          action = "Login";
-          target = "Authentication";
-          break;
-        case 'user_logout':
-          action = "Logout";
-          target = "Authentication";
-          break;
-        case 'user_register':
-          action = "Registration";
-          target = "User Account";
-          break;
-        case 'credential_create':
-          action = "Created";
-          target = "Credential";
-          break;
-        case 'credential_update':
-          action = "Updated";
-          target = "Credential";
-          break;
-        case 'credential_delete':
-          action = "Deleted";
-          target = "Credential";
-          break;
-        case 'credential_use':
-          action = "Used";
-          target = "Credential";
-          break;
-        case 'application_create':
-          action = "Created";
-          target = "Application";
-          break;
-        case 'application_update':
-          action = "Updated";
-          target = "Application";
-          break;
-        case 'application_delete':
-          action = "Deleted";
-          target = "Application";
-          break;
-        case 'policy_create':
-          action = "Created";
-          target = "Policy";
-          break;
-        case 'policy_update':
-          action = "Updated";
-          target = "Policy";
-          break;
-        case 'policy_delete':
-          action = "Deleted";
-          target = "Policy";
-          break;
-        default:
-          // Try to extract meaningful action/target from the type
-          const parts = event.type.split('_');
-          if (parts.length >= 2) {
-            action = parts[1].charAt(0).toUpperCase() + parts[1].slice(1);
-            target = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
-          }
+      case 'user_login':
+        action = 'Login';
+        target = 'Authentication';
+        break;
+      case 'user_logout':
+        action = 'Logout';
+        target = 'Authentication';
+        break;
+      case 'user_register':
+        action = 'Registration';
+        target = 'User Account';
+        break;
+      case 'credential_create':
+        action = 'Created';
+        target = 'Credential';
+        break;
+      case 'credential_update':
+        action = 'Updated';
+        target = 'Credential';
+        break;
+      case 'credential_delete':
+        action = 'Deleted';
+        target = 'Credential';
+        break;
+      case 'credential_use':
+        action = 'Used';
+        target = 'Credential';
+        break;
+      case 'application_create':
+        action = 'Created';
+        target = 'Application';
+        break;
+      case 'application_update':
+        action = 'Updated';
+        target = 'Application';
+        break;
+      case 'application_delete':
+        action = 'Deleted';
+        target = 'Application';
+        break;
+      case 'policy_create':
+        action = 'Created';
+        target = 'Policy';
+        break;
+      case 'policy_update':
+        action = 'Updated';
+        target = 'Policy';
+        break;
+      case 'policy_delete':
+        action = 'Deleted';
+        target = 'Policy';
+        break;
+      default: {
+        // Try to extract meaningful action/target from the type
+        const parts = event.type.split('_');
+        if (parts.length >= 2) {
+          action = parts[1].charAt(0).toUpperCase() + parts[1].slice(1);
+          target = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+        }
+      }
       }
       
       return {

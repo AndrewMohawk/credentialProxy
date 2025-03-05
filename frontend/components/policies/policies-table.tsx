@@ -1,6 +1,7 @@
-"use client"
+'use client';
 
-import { Button } from "@/components/ui/button"
+import React from 'react';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -8,18 +9,18 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Switch } from "@/components/ui/switch"
-import { Policy } from "@/lib/types/policy"
-import { formatDate } from "@/lib/utils"
-import { Trash2, MoreHorizontal } from "lucide-react"
+} from '@/components/ui/table';
+import { Switch } from '@/components/ui/switch';
+import { Policy } from '@/lib/types/policy';
+import { formatDate } from '@/lib/utils';
+import { Trash2, MoreHorizontal } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from '@/components/ui/dropdown-menu';
 
 interface PolicyTableProps {
   policies: Policy[]
@@ -39,7 +40,7 @@ interface PolicyTableProps {
 export function PoliciesTable({
   policies,
   isLoading = false,
-  noResultsMessage = "No policies found",
+  noResultsMessage = 'No policies found',
   onToggleStatus,
   onDelete,
   onView,
@@ -68,8 +69,8 @@ export function PoliciesTable({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-    )
-  }
+    );
+  };
 
   // Find the related entity name (plugin or credential)
   const getPluginName = (pluginId: string | undefined) => {
@@ -91,7 +92,7 @@ export function PoliciesTable({
       <div className="flex justify-center items-center py-4">
         <div className="animate-spin h-6 w-6 border-3 border-primary rounded-full border-t-transparent"></div>
       </div>
-    )
+    );
   }
 
   if (!policies.length) {
@@ -99,7 +100,7 @@ export function PoliciesTable({
       <div className="py-3 text-center text-muted-foreground text-xs">
         {noResultsMessage}
       </div>
-    )
+    );
   }
 
   return (
@@ -132,8 +133,8 @@ export function PoliciesTable({
               </TableCell>
             )}
             <TableCell className="max-w-[150px] truncate py-1 px-2">
-              <span title={policy.description || "No description"}>
-                {policy.description ? policy.description : "No description"}
+              <span title={policy.description || 'No description'}>
+                {policy.description ? policy.description : 'No description'}
               </span>
             </TableCell>
             <TableCell className="py-1 px-2">
@@ -141,10 +142,10 @@ export function PoliciesTable({
                 <Switch
                   checked={policy.isActive}
                   onCheckedChange={() => onToggleStatus(policy.id, !policy.isActive)}
-                  aria-label={policy.isActive ? "Disable policy" : "Enable policy"}
+                  aria-label={policy.isActive ? 'Disable policy' : 'Enable policy'}
                   className="scale-75 data-[state=checked]:bg-primary"
                 />
-                <span className="text-xs text-muted-foreground">{policy.isActive ? "Active" : "Inactive"}</span>
+                <span className="text-xs text-muted-foreground">{policy.isActive ? 'Active' : 'Inactive'}</span>
               </div>
             </TableCell>
             <TableCell className="py-1 px-2">{formatDate(policy.createdAt)}</TableCell>

@@ -1,33 +1,108 @@
 import { prisma } from '../../db/prisma';
 import { logger } from '../../utils/logger';
 
-// Policy types
+/**
+ * Policy Engine - Core types and interfaces for policy management
+ */
+
+/**
+ * Policy Types Enum
+ */
 export enum PolicyType {
   ALLOW_LIST = 'ALLOW_LIST',
   DENY_LIST = 'DENY_LIST',
   TIME_BASED = 'TIME_BASED',
   COUNT_BASED = 'COUNT_BASED',
-  MANUAL_APPROVAL = 'MANUAL_APPROVAL',
+  MANUAL_APPROVAL = 'MANUAL_APPROVAL'
 }
 
-// Policy status
+/**
+ * Base Policy Interface - Common to all policy types
+ */
+export interface Policy {
+  id?: string;
+  name: string;
+  description: string;
+  type: PolicyType;
+  version?: number;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  message?: string; // Custom message to display when policy denies access
+  
+  // ALLOW_LIST specific properties
+  targetField?: string;
+  allowedValues?: string[];
+  
+  // DENY_LIST specific properties
+  deniedValues?: string[];
+  
+  // TIME_BASED specific properties
+  allowedDays?: string[];
+  allowedHoursStart?: string;
+  allowedHoursEnd?: string;
+  timezone?: string;
+  
+  // COUNT_BASED specific properties
+  maxRequests?: number;
+  timeWindowSeconds?: number;
+  
+  // MANUAL_APPROVAL specific properties
+  approvers?: string[];
+  expirationMinutes?: number;
+}
+
+/**
+ * Policy Request - Request context passed to policy evaluation
+ */
+export interface PolicyRequest {
+  path?: string;
+  method?: string;
+  ip?: string;
+  user?: {
+    id?: string;
+    email?: string;
+    roles?: string[];
+  };
+  headers?: Record<string, string>;
+  timestamp?: string;
+  credential?: {
+    id: string;
+    type: string;
+    name: string;
+  };
+  [key: string]: any;
+}
+
+/**
+ * Policy Result - Result of a policy evaluation
+ */
+export interface PolicyResult {
+  allowed: boolean;
+  reason: string;
+  policyId?: string;
+}
+
+/**
+ * Policy Blueprint - Template for creating policies
+ */
+export interface PolicyBlueprint {
+  id: string;
+  name: string;
+  description: string;
+  pluginType?: string;
+  policyConfig: Partial<Policy>;
+  isDefault?: boolean;
+  tags?: string[];
+}
+
+/**
+ * Policy status
+ */
 export enum PolicyStatus {
   APPROVED = 'APPROVED',
   DENIED = 'DENIED',
   PENDING = 'PENDING',
-}
-
-// Policy interface
-export interface Policy {
-  id: string;
-  type: PolicyType;
-  name: string;
-  description?: string;
-  applicationId?: string;
-  credentialId?: string;
-  config: Record<string, any>;
-  priority: number;
-  isActive: boolean;
 }
 
 // Proxy request interface
@@ -104,7 +179,7 @@ export const checkApplicationCredentialAccess = async (
         WHERE "applicationId" = ${applicationId} AND "credentialId" = ${credentialId}
       `;
       
-      // @ts-ignore - we're using raw query which might return different shapes
+      // @ts-expect-error - we're using raw query which might return different shapes
       if (result && result[0] && result[0].count > 0) return true;
     } catch (err) {
       // Suppress errors from this approach - it's just a fallback
@@ -130,7 +205,7 @@ export const getApplicablePolicies = async (
 ): Promise<Policy[]> => {
   try {
     // Create a flexible query to handle different schema structures
-    let whereCondition: any = {
+    const whereCondition: any = {
       OR: [
         // Specific to this credential and application
         { 
@@ -262,13 +337,16 @@ export const evaluateRequest = async (
       // Skip inactive policies
       if (!policy.isActive) continue;
       
-      const result = await evaluatePolicy(request as ProxyRequest, policy);
+      const result = evaluatePolicy(policy, request as PolicyRequest);
       
       // If this policy triggered, return its result
-      if (result.status !== PolicyStatus.APPROVED) {
+      if (!result.allowed) {
         // Add the policy id for reference (especially important for simulations)
-        result.policyId = policy.id;
-        return result;
+        return {
+          status: result.allowed ? PolicyStatus.APPROVED : PolicyStatus.DENIED,
+          policyId: policy.id,
+          reason: result.reason
+        };
       }
     }
     
@@ -286,286 +364,269 @@ export const evaluateRequest = async (
 };
 
 /**
- * Evaluates a single policy against a request
- * @param request The request to evaluate
- * @param policy The policy to evaluate against
- * @returns PolicyEvaluationResult indicating if the policy allows the request
+ * Evaluates a policy against a request
+ * @param policy The policy to evaluate
+ * @param request The request context to evaluate against
+ * @returns PolicyResult with decision and reason
  */
-export const evaluatePolicy = async (
-  request: ProxyRequest,
-  policy: Policy
-): Promise<PolicyEvaluationResult> => {
-  try {
-    const { operation, parameters } = request;
-    
-    // Evaluate based on policy type
-    switch (policy.type) {
-      case PolicyType.ALLOW_LIST: 
-        return evaluateAllowListPolicy(request, policy);
-      
-      case PolicyType.DENY_LIST:
-        return evaluateDenyListPolicy(request, policy);
-      
-      case PolicyType.TIME_BASED:
-        return evaluateTimeBasedPolicy(request, policy);
-      
-      case PolicyType.COUNT_BASED:
-        return evaluateCountBasedPolicy(request, policy);
-      
-      case PolicyType.MANUAL_APPROVAL:
-        return {
-          status: PolicyStatus.PENDING,
-          reason: 'Request requires manual approval',
-          requiresApproval: true
-        };
-      
-      default:
-        logger.warn(`Unknown policy type: ${policy.type}`);
-        // Default to allow if policy type is unknown
-        return { status: PolicyStatus.APPROVED };
-    }
-  } catch (error) {
-    logger.error(`Error evaluating policy: ${error}`);
-    // Default to deny on error
+export const evaluatePolicy = (policy: Policy, request: PolicyRequest): PolicyResult => {
+  // Don't evaluate inactive policies
+  if (!policy.isActive) {
     return {
-      status: PolicyStatus.DENIED,
-      reason: 'Error evaluating policy'
+      allowed: true,
+      reason: `Policy ${policy.id || policy.name} is inactive`,
+      policyId: policy.id
+    };
+  }
+  
+  switch (policy.type) {
+  case PolicyType.ALLOW_LIST:
+    return evaluateAllowListPolicy(policy, request);
+  case PolicyType.DENY_LIST:
+    return evaluateDenyListPolicy(policy, request);
+  case PolicyType.TIME_BASED:
+    return evaluateTimeBasedPolicy(policy, request);
+  case PolicyType.COUNT_BASED:
+    return evaluateCountBasedPolicy(policy, request);
+  case PolicyType.MANUAL_APPROVAL:
+    return evaluateManualApprovalPolicy(policy, request);
+  default:
+    return {
+      allowed: false,
+      reason: `Unknown policy type: ${policy.type}`,
+      policyId: policy.id
     };
   }
 };
 
 /**
- * Evaluates an allow list policy
+ * Evaluate an ALLOW_LIST policy
  */
-const evaluateAllowListPolicy = (
-  request: ProxyRequest,
-  policy: Policy
-): PolicyEvaluationResult => {
-  const { operation, parameters } = request;
-  const config = policy.config || {};
-  
-  // Check if operation is in allowed operations
-  if (config.operations && Array.isArray(config.operations)) {
-    if (!config.operations.includes(operation)) {
-      return {
-        status: PolicyStatus.DENIED,
-        reason: `Operation '${operation}' is not in the allowed operations list`
-      };
-    }
+const evaluateAllowListPolicy = (policy: Policy, request: PolicyRequest): PolicyResult => {
+  if (!policy.targetField || !policy.allowedValues || !policy.allowedValues.length) {
+    return {
+      allowed: false,
+      reason: 'Policy is missing targetField or allowedValues',
+      policyId: policy.id
+    };
   }
   
-  // Check parameter constraints if defined
-  if (config.parameterConstraints && typeof config.parameterConstraints === 'object') {
-    for (const [param, constraint] of Object.entries(config.parameterConstraints)) {
-      // Skip if parameter is not in the request
-      if (!(param in parameters)) continue;
-      
-      const paramValue = parameters[param];
-      
-      // Check constraint type
-      if (Array.isArray(constraint)) {
-        // Allowed values list
-        if (!constraint.includes(paramValue)) {
-          return {
-            status: PolicyStatus.DENIED,
-            reason: `Parameter '${param}' value '${paramValue}' is not in the allowed values list`
-          };
-        }
-      } else if (constraint && typeof constraint === 'object') {
-        // Type guard to ensure constraint is treated as ParameterConstraint
-        const typedConstraint = constraint as ParameterConstraint;
-        
-        // Complex constraint (ranges, patterns, etc.)
-        if (typedConstraint.min !== undefined && paramValue < typedConstraint.min) {
-          return {
-            status: PolicyStatus.DENIED,
-            reason: `Parameter '${param}' value ${paramValue} is less than minimum ${typedConstraint.min}`
-          };
-        }
-        
-        if (typedConstraint.max !== undefined && paramValue > typedConstraint.max) {
-          return {
-            status: PolicyStatus.DENIED,
-            reason: `Parameter '${param}' value ${paramValue} is greater than maximum ${typedConstraint.max}`
-          };
-        }
-        
-        if (typedConstraint.pattern && typeof paramValue === 'string') {
-          const regex = new RegExp(typedConstraint.pattern);
-          if (!regex.test(paramValue)) {
-            return {
-              status: PolicyStatus.DENIED,
-              reason: `Parameter '${param}' value '${paramValue}' does not match required pattern`
-            };
-          }
-        }
-      }
-    }
+  // Extract the target value from the request
+  const targetValue = getNestedValue(request, policy.targetField);
+  
+  if (targetValue === undefined) {
+    return {
+      allowed: false,
+      reason: `Request does not contain field '${policy.targetField}'`,
+      policyId: policy.id
+    };
   }
   
-  // All checks passed
-  return { status: PolicyStatus.APPROVED };
+  // Check if target value is in the allowed list
+  const allowed = policy.allowedValues.some(value => 
+    typeof targetValue === 'string' 
+      ? matchValue(targetValue, value)
+      : targetValue === value
+  );
+  
+  return {
+    allowed,
+    reason: allowed 
+      ? `${policy.targetField} value is allowed` 
+      : `${policy.targetField} value is not in allowed list`,
+    policyId: policy.id
+  };
 };
 
 /**
- * Evaluates a deny list policy
+ * Evaluate a DENY_LIST policy
  */
-const evaluateDenyListPolicy = (
-  request: ProxyRequest,
-  policy: Policy
-): PolicyEvaluationResult => {
-  const { operation, parameters } = request;
-  const config = policy.config || {};
-  
-  // Check if operation is in denied operations
-  if (config.operations && Array.isArray(config.operations)) {
-    if (config.operations.includes(operation)) {
-      return {
-        status: PolicyStatus.DENIED,
-        reason: `Operation '${operation}' is denied by policy`
-      };
-    }
+const evaluateDenyListPolicy = (policy: Policy, request: PolicyRequest): PolicyResult => {
+  if (!policy.targetField || !policy.deniedValues || !policy.deniedValues.length) {
+    return {
+      allowed: false,
+      reason: 'Policy is missing targetField or deniedValues',
+      policyId: policy.id
+    };
   }
   
-  // Check parameter blacklist if defined
-  if (config.blockedParameters && typeof config.blockedParameters === 'object') {
-    for (const [param, blockedValues] of Object.entries(config.blockedParameters)) {
-      // Skip if parameter is not in the request
-      if (!(param in parameters)) continue;
-      
-      const paramValue = parameters[param];
-      
-      // Check if the parameter value is blocked
-      if (Array.isArray(blockedValues) && blockedValues.includes(paramValue)) {
-        return {
-          status: PolicyStatus.DENIED,
-          reason: `Parameter '${param}' value '${paramValue}' is blocked by policy`
-        };
-      }
-    }
+  // Extract the target value from the request
+  const targetValue = getNestedValue(request, policy.targetField);
+  
+  if (targetValue === undefined) {
+    return {
+      allowed: true, // No value to deny against
+      reason: `Request does not contain field '${policy.targetField}'`,
+      policyId: policy.id
+    };
   }
   
-  // All checks passed
-  return { status: PolicyStatus.APPROVED };
+  // Check if target value is in the denied list
+  const denied = policy.deniedValues.some(value => 
+    typeof targetValue === 'string' 
+      ? matchValue(targetValue, value)
+      : targetValue === value
+  );
+  
+  return {
+    allowed: !denied,
+    reason: denied 
+      ? `${policy.targetField} value is in deny list` 
+      : `${policy.targetField} value is not denied`,
+    policyId: policy.id
+  };
 };
 
 /**
- * Evaluates a time-based policy
+ * Evaluate a TIME_BASED policy
  */
-const evaluateTimeBasedPolicy = (
-  request: ProxyRequest,
-  policy: Policy
-): PolicyEvaluationResult => {
-  const config = policy.config || {};
-  const now = new Date();
-  const currentHour = now.getUTCHours();
-  const currentDay = now.getUTCDay(); // 0 = Sunday, 6 = Saturday
+const evaluateTimeBasedPolicy = (policy: Policy, request: PolicyRequest): PolicyResult => {
+  // Use request timestamp or current time
+  const requestTime = request.timestamp 
+    ? new Date(request.timestamp) 
+    : new Date();
   
-  // Check allowed days
-  if (config.allowedDays && Array.isArray(config.allowedDays)) {
-    if (!config.allowedDays.includes(currentDay)) {
+  // Set timezone if specified
+  if (policy.timezone) {
+    // Note: In a real implementation, we'd use a proper timezone library
+    // such as date-fns-tz or moment-timezone
+    console.log(`Using timezone: ${policy.timezone}`);
+  }
+  
+  // Check day restrictions if specified
+  if (policy.allowedDays && policy.allowedDays.length) {
+    const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const currentDay = daysOfWeek[requestTime.getDay()].toLowerCase();
+    
+    if (!policy.allowedDays.map(d => d.toLowerCase()).includes(currentDay)) {
       return {
-        status: PolicyStatus.DENIED,
-        reason: `Access not allowed on this day of the week`
+        allowed: false,
+        reason: `Access not allowed on ${currentDay}`,
+        policyId: policy.id
       };
     }
   }
   
-  // Check allowed hours
-  if (config.allowedHours) {
-    const { start = 0, end = 24 } = config.allowedHours;
+  // Check time restrictions if specified
+  if (policy.allowedHoursStart && policy.allowedHoursEnd) {
+    const [startHour, startMinute] = policy.allowedHoursStart.split(':').map(Number);
+    const [endHour, endMinute] = policy.allowedHoursEnd.split(':').map(Number);
     
-    if (currentHour < start || currentHour >= end) {
+    const currentHour = requestTime.getHours();
+    const currentMinute = requestTime.getMinutes();
+    
+    const startTimeMinutes = startHour * 60 + startMinute;
+    const endTimeMinutes = endHour * 60 + endMinute;
+    const currentTimeMinutes = currentHour * 60 + currentMinute;
+    
+    if (currentTimeMinutes < startTimeMinutes || currentTimeMinutes > endTimeMinutes) {
       return {
-        status: PolicyStatus.DENIED,
-        reason: `Access not allowed during this time (${currentHour}:00 UTC)`
+        allowed: false,
+        reason: `Access not allowed at this time (allowed between ${policy.allowedHoursStart} and ${policy.allowedHoursEnd})`,
+        policyId: policy.id
       };
     }
   }
   
-  // Check specific access windows
-  if (config.accessWindows && Array.isArray(config.accessWindows)) {
-    // Convert current time to timestamp for comparison
-    const nowTimestamp = now.getTime();
-    
-    // Check if current time falls within any access window
-    const isInWindow = config.accessWindows.some((window: any) => {
-      const startTime = new Date(window.start).getTime();
-      const endTime = new Date(window.end).getTime();
-      
-      return nowTimestamp >= startTime && nowTimestamp <= endTime;
-    });
-    
-    if (!isInWindow) {
-      return {
-        status: PolicyStatus.DENIED,
-        reason: `Access not allowed outside defined access windows`
-      };
-    }
-  }
-  
-  // All checks passed
-  return { status: PolicyStatus.APPROVED };
+  return {
+    allowed: true,
+    reason: 'Time-based restrictions passed',
+    policyId: policy.id
+  };
 };
 
 /**
- * Evaluates a count-based policy
+ * Evaluate a COUNT_BASED policy
+ * Note: This is a simplified implementation. A real implementation would
+ * need to track request counts in a database or cache.
  */
-const evaluateCountBasedPolicy = async (
-  request: ProxyRequest,
-  policy: Policy
-): Promise<PolicyEvaluationResult> => {
-  const { applicationId, credentialId, operation } = request;
-  const config = policy.config || {};
-  
-  // Get the time window in milliseconds (default: 1 hour)
-  const timeWindowMs = (config.timeWindowMinutes || 60) * 60 * 1000;
-  const maxCount = config.maxCount || 100;
-  
-  try {
-    // Calculate the time threshold
-    const timeThreshold = new Date(Date.now() - timeWindowMs);
-    
-    // Count requests in the time window using AuditEvent
-    const requestCount = await prisma.auditEvent.count({
-      where: {
-        type: 'credential_access',
-        applicationId,
-        credentialId,
-        details: config.countAllOperations ? undefined : {
-          path: ['operation'],
-          equals: operation
-        },
-        createdAt: {
-          gte: timeThreshold
-        }
-      }
-    });
-    
-    // Check if count exceeds the limit
-    if (requestCount >= maxCount) {
-      return {
-        status: PolicyStatus.DENIED,
-        reason: `Request limit exceeded (${requestCount}/${maxCount} in the last ${config.timeWindowMinutes} minutes)`
-      };
-    }
-    
-    // Within limits
-    return { status: PolicyStatus.APPROVED };
-  } catch (error) {
-    logger.error(`Error evaluating count-based policy: ${error}`);
-    
-    // Default behavior on error (configurable)
-    if (config.denyOnError) {
-      return {
-        status: PolicyStatus.DENIED,
-        reason: 'Error evaluating request count limits'
-      };
-    }
-    
-    // Default to allow on error
-    return { status: PolicyStatus.APPROVED };
+const evaluateCountBasedPolicy = (policy: Policy, request: PolicyRequest): PolicyResult => {
+  if (!policy.maxRequests || !policy.timeWindowSeconds) {
+    return {
+      allowed: false,
+      reason: 'Policy is missing maxRequests or timeWindowSeconds',
+      policyId: policy.id
+    };
   }
+  
+  // In a real implementation, we would:
+  // 1. Get the credential or user ID to track
+  // 2. Check the recent request count in Redis/DB
+  // 3. Increment the counter if allowed
+  // 4. Set expiry for the counter
+  
+  // Mock implementation for demo purposes
+  const mockCurrentCount = Math.floor(Math.random() * (policy.maxRequests * 1.2));
+  const allowed = mockCurrentCount < policy.maxRequests;
+  
+  return {
+    allowed,
+    reason: allowed 
+      ? `Request count within limits (${mockCurrentCount}/${policy.maxRequests})` 
+      : `Rate limit exceeded (${mockCurrentCount}/${policy.maxRequests} in ${policy.timeWindowSeconds} seconds)`,
+    policyId: policy.id
+  };
+};
+
+/**
+ * Evaluate a MANUAL_APPROVAL policy
+ * Note: This is a simplified implementation. A real implementation would
+ * need to check approvals from a database.
+ */
+const evaluateManualApprovalPolicy = (policy: Policy, request: PolicyRequest): PolicyResult => {
+  if (!policy.approvers || !policy.approvers.length) {
+    return {
+      allowed: false,
+      reason: 'Policy is missing approvers',
+      policyId: policy.id
+    };
+  }
+  
+  // In a real implementation, we would:
+  // 1. Check if there's an existing approval request
+  // 2. If not, create a new one and return not allowed
+  // 3. If yes, check the status and update if necessary
+  
+  // Mock implementation for demo purposes
+  const mockApproved = Math.random() > 0.5;
+  
+  return {
+    allowed: mockApproved,
+    reason: mockApproved 
+      ? 'Request was manually approved' 
+      : 'Waiting for manual approval',
+    policyId: policy.id
+  };
+};
+
+/**
+ * Helper to match string values, including wildcards
+ */
+const matchValue = (actual: string, pattern: string): boolean => {
+  // Handle wildcards (* for any characters)
+  if (pattern.includes('*')) {
+    const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+    return regex.test(actual);
+  }
+  
+  return actual === pattern;
+};
+
+/**
+ * Helper to get a nested value from an object using dot notation
+ */
+const getNestedValue = (obj: Record<string, any>, path: string): any => {
+  const keys = path.split('.');
+  let current = obj;
+  
+  for (const key of keys) {
+    if (current === undefined || current === null) {
+      return undefined;
+    }
+    current = current[key];
+  }
+  
+  return current;
 };
 
 // Log policy evaluation for audit purposes

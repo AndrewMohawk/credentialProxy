@@ -1,6 +1,7 @@
-"use client"
+'use client';
 
-import { Button } from "@/components/ui/button"
+import React from 'react';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -8,7 +9,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from '@/components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -16,12 +17,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { formatDate, formatDateTime } from "@/lib/utils"
-import { Policy } from "@/lib/types/policy"
+} from '@/components/ui/table';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { formatDate, formatDateTime } from '@/lib/utils';
+import { Policy } from '@/lib/types/policy';
+import { Edit, PlayCircle } from 'lucide-react';
 
 interface PolicyViewDialogProps {
   open: boolean;
@@ -30,6 +32,7 @@ interface PolicyViewDialogProps {
   usageHistory: any[];
   isLoading: boolean;
   onEdit: () => void;
+  onTest?: (policy: any) => void;
 }
 
 export function PolicyViewDialog({
@@ -38,7 +41,8 @@ export function PolicyViewDialog({
   policyDetails,
   usageHistory,
   isLoading,
-  onEdit
+  onEdit,
+  onTest
 }: PolicyViewDialogProps) {
   if (!policyDetails && !isLoading) return null;
 
@@ -46,9 +50,9 @@ export function PolicyViewDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>{policyDetails?.name || "Policy Details"}</DialogTitle>
+          <DialogTitle>{policyDetails?.name || 'Policy Details'}</DialogTitle>
           <DialogDescription>
-            {policyDetails?.description || "Loading policy details..."}
+            {policyDetails?.description || 'Loading policy details...'}
           </DialogDescription>
         </DialogHeader>
         
@@ -70,87 +74,87 @@ export function PolicyViewDialog({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground">Name</h3>
-                    <p className="mt-1">{policyDetails?.name || "N/A"}</p>
+                    <p className="mt-1">{policyDetails?.name || 'N/A'}</p>
                   </div>
                   
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
-                    <p className="mt-1">{policyDetails?.description || "No description"}</p>
+                    <p className="mt-1">{policyDetails?.description || 'No description'}</p>
                   </div>
                   
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground">Type</h3>
-                    <p className="mt-1">{policyDetails?.type || "N/A"}</p>
+                    <p className="mt-1">{policyDetails?.type || 'N/A'}</p>
                   </div>
                   
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground">Scope</h3>
-                    <p className="mt-1">{policyDetails?.scope || "N/A"}</p>
+                    <p className="mt-1">{policyDetails?.scope || 'N/A'}</p>
                   </div>
                   
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
                     <div className="mt-1">
-                      <Badge variant={policyDetails?.isActive ? "default" : "destructive"}>
-                        {policyDetails?.isActive ? "Active" : "Inactive"}
+                      <Badge variant={policyDetails?.isActive ? 'default' : 'destructive'}>
+                        {policyDetails?.isActive ? 'Active' : 'Inactive'}
                       </Badge>
                     </div>
                   </div>
                   
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground">Created</h3>
-                    <p className="mt-1">{formatDate(policyDetails?.createdAt) || "N/A"}</p>
+                    <p className="mt-1">{formatDate(policyDetails?.createdAt) || 'N/A'}</p>
                   </div>
                   
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground">Last Updated</h3>
-                    <p className="mt-1">{formatDate(policyDetails?.updatedAt) || "N/A"}</p>
+                    <p className="mt-1">{formatDate(policyDetails?.updatedAt) || 'N/A'}</p>
                   </div>
                   
                   {policyDetails?.pluginId && (
                     <div>
                       <h3 className="text-sm font-medium text-muted-foreground">Plugin</h3>
-                      <p className="mt-1">{policyDetails?.pluginName || policyDetails?.pluginId || "N/A"}</p>
+                      <p className="mt-1">{policyDetails?.pluginName || policyDetails?.pluginId || 'N/A'}</p>
                     </div>
                   )}
                   
                   {policyDetails?.credentialId && (
                     <div>
                       <h3 className="text-sm font-medium text-muted-foreground">Credential</h3>
-                      <p className="mt-1">{policyDetails?.credentialName || policyDetails?.credentialId || "N/A"}</p>
+                      <p className="mt-1">{policyDetails?.credentialName || policyDetails?.credentialId || 'N/A'}</p>
                     </div>
                   )}
                 </div>
                 
-                {policyDetails?.type === "TIME_BASED" && policyDetails?.configuration && (
+                {policyDetails?.type === 'TIME_BASED' && policyDetails?.configuration && (
                   <div className="mt-4">
                     <h3 className="text-sm font-medium text-muted-foreground mb-2">Time Restrictions</h3>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <h4 className="text-xs font-medium">Start Time</h4>
-                        <p>{policyDetails.configuration.startTime || "N/A"}</p>
+                        <p>{policyDetails.configuration.startTime || 'N/A'}</p>
                       </div>
                       <div>
                         <h4 className="text-xs font-medium">End Time</h4>
-                        <p>{policyDetails.configuration.endTime || "N/A"}</p>
+                        <p>{policyDetails.configuration.endTime || 'N/A'}</p>
                       </div>
                       {policyDetails.configuration.daysOfWeek && (
                         <div className="col-span-2">
                           <h4 className="text-xs font-medium">Days</h4>
-                          <p>{policyDetails.configuration.daysOfWeek.join(", ")}</p>
+                          <p>{policyDetails.configuration.daysOfWeek.join(', ')}</p>
                         </div>
                       )}
                     </div>
                   </div>
                 )}
                 
-                {policyDetails?.type === "COUNT_BASED" && policyDetails?.configuration && (
+                {policyDetails?.type === 'COUNT_BASED' && policyDetails?.configuration && (
                   <div className="mt-4">
                     <h3 className="text-sm font-medium text-muted-foreground mb-2">Count Restrictions</h3>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <h4 className="text-xs font-medium">Max Count</h4>
-                        <p>{policyDetails.configuration.maxCount || "N/A"}</p>
+                        <p>{policyDetails.configuration.maxCount || 'N/A'}</p>
                       </div>
                       <div>
                         <h4 className="text-xs font-medium">Current Count</h4>
@@ -160,11 +164,11 @@ export function PolicyViewDialog({
                   </div>
                 )}
                 
-                {policyDetails?.type === "PATTERN_MATCH" && policyDetails?.configuration && (
+                {policyDetails?.type === 'PATTERN_MATCH' && policyDetails?.configuration && (
                   <div className="mt-4">
                     <h3 className="text-sm font-medium text-muted-foreground mb-2">Pattern</h3>
                     <code className="block p-2 rounded bg-muted text-xs overflow-x-auto">
-                      {policyDetails.configuration.pattern || "No pattern defined"}
+                      {policyDetails.configuration.pattern || 'No pattern defined'}
                     </code>
                   </div>
                 )}
@@ -196,7 +200,7 @@ export function PolicyViewDialog({
                             <TableCell>{formatDateTime(usage.timestamp)}</TableCell>
                             <TableCell>
                               <Badge 
-                                variant={usage.status === "ALLOWED" ? "default" : "destructive"}
+                                variant={usage.status === 'ALLOWED' ? 'default' : 'destructive'}
                               >
                                 {usage.status}
                               </Badge>
@@ -264,9 +268,25 @@ export function PolicyViewDialog({
           </Tabs>
         )}
         
+        <div className="mt-4 flex justify-end space-x-2">
+          <Button variant="outline" onClick={onEdit}>
+            <Edit className="mr-2 h-4 w-4" />
+            Edit
+          </Button>
+
+          {onTest && (
+            <Button 
+              variant="outline" 
+              onClick={() => onTest(policyDetails)}
+            >
+              <PlayCircle className="mr-2 h-4 w-4" />
+              Test Policy
+            </Button>
+          )}
+        </div>
+        
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-          <Button onClick={onEdit}>Edit Policy</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -1,14 +1,14 @@
-"use client"
+'use client';
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { Plus } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
-import { useAuth } from "@/hooks/use-auth"
-import { DashboardNav } from "@/components/dashboard-nav"
-import apiClient from "@/lib/api-client"
-import { useToast } from "@/components/ui/use-toast"
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { useAuth } from '@/hooks/use-auth';
+import { DashboardNav } from '@/components/dashboard-nav';
+import apiClient from '@/lib/api-client';
+import { useToast } from '@/components/ui/use-toast';
 import {
   Table,
   TableBody,
@@ -16,16 +16,16 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from '@/components/ui/table';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { DashboardShell } from "@/components/dashboard-shell"
-import { DashboardHeader } from "@/components/dashboard-header"
+} from '@/components/ui/card';
+import { DashboardShell } from '@/components/dashboard-shell';
+import { DashboardHeader } from '@/components/dashboard-header';
 
 // Define the application type
 type Application = {
@@ -38,56 +38,56 @@ type Application = {
 }
 
 export default function ApplicationsPage() {
-  const { isAuthenticated, token, isLoading } = useAuth()
-  const router = useRouter()
-  const { toast } = useToast()
-  const [applications, setApplications] = useState<Application[]>([])
-  const [isLoadingApplications, setIsLoadingApplications] = useState(true)
+  const { isAuthenticated, token, isLoading } = useAuth();
+  const router = useRouter();
+  const { toast } = useToast();
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [isLoadingApplications, setIsLoadingApplications] = useState(true);
 
   // Get backend configuration from environment variables or use defaults
   const BACKEND_PORT = process.env.NEXT_PUBLIC_BACKEND_PORT || '4242';
   const BACKEND_HOST = process.env.NEXT_PUBLIC_BACKEND_HOST || 'localhost';
   // API URL from environment variables or default with configurable host and port
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || `http://${BACKEND_HOST}:${BACKEND_PORT}/api/v1`
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || `http://${BACKEND_HOST}:${BACKEND_PORT}/api/v1`;
 
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/login")
+      router.push('/login');
     }
-  }, [isLoading, isAuthenticated, router])
+  }, [isLoading, isAuthenticated, router]);
 
   // Fetch applications when component mounts
   useEffect(() => {
     if (isAuthenticated) {
-      fetchApplications()
+      fetchApplications();
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated]);
 
   // Function to fetch applications from API
   const fetchApplications = async () => {
-    setIsLoadingApplications(true)
+    setIsLoadingApplications(true);
     try {
       const response = await apiClient.get('/applications');
       
       if (response.success) {
-        setApplications(response.data || [])
+        setApplications(response.data || []);
       } else {
-        throw new Error(response.error || "Failed to fetch applications")
+        throw new Error(response.error || 'Failed to fetch applications');
       }
     } catch (error: any) {
-      console.error("Error fetching applications:", error)
+      console.error('Error fetching applications:', error);
       toast({
-        variant: "destructive",
-        title: "Error fetching applications",
-        description: error.message || "An error occurred while fetching applications."
-      })
+        variant: 'destructive',
+        title: 'Error fetching applications',
+        description: error.message || 'An error occurred while fetching applications.'
+      });
       // Initialize with empty array in case of error
-      setApplications([])
+      setApplications([]);
     } finally {
-      setIsLoadingApplications(false)
+      setIsLoadingApplications(false);
     }
-  }
+  };
 
   // Show loading state if still checking authentication
   if (isLoading) {
@@ -98,23 +98,23 @@ export default function ApplicationsPage() {
           <p className="text-muted-foreground">Loading applications...</p>
         </div>
       </div>
-    )
+    );
   }
 
   // Show nothing if not authenticated (will be redirected)
   if (!isAuthenticated) {
-    return null
+    return null;
   }
 
   // Format date for display
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
+    const date = new Date(dateString);
     return new Intl.DateTimeFormat('en-US', { 
       year: 'numeric', 
       month: 'short', 
       day: 'numeric' 
-    }).format(date)
-  }
+    }).format(date);
+  };
 
   return (
     <DashboardShell>
@@ -185,6 +185,6 @@ export default function ApplicationsPage() {
         </Card>
       </div>
     </DashboardShell>
-  )
+  );
 }
 

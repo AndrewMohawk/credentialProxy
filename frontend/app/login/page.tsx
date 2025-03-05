@@ -1,199 +1,199 @@
-"use client"
+'use client';
 
-import type React from "react"
+import type React from 'react';
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Shield, Fingerprint, KeyRound, ArrowRight, User, AlertCircle, Check, X } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useToast } from "@/components/ui/use-toast"
-import { ModeToggle } from "@/components/mode-toggle"
-import { useAuth } from "@/hooks/use-auth"
-import { Progress } from "@/components/ui/progress"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Shield, Fingerprint, KeyRound, ArrowRight, User, AlertCircle, Check, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/components/ui/use-toast';
+import { ModeToggle } from '@/components/mode-toggle';
+import { useAuth } from '@/hooks/use-auth';
+import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 // Calculate password entropy
 const calculatePasswordEntropy = (password: string): number => {
-  if (!password) return 0
+  if (!password) return 0;
   
   // Calculate character set size
-  let charSetSize = 0
-  const hasLowercase = /[a-z]/.test(password)
-  const hasUppercase = /[A-Z]/.test(password)
-  const hasNumbers = /[0-9]/.test(password)
-  const hasSymbols = /[^a-zA-Z0-9]/.test(password)
+  let charSetSize = 0;
+  const hasLowercase = /[a-z]/.test(password);
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasNumbers = /[0-9]/.test(password);
+  const hasSymbols = /[^a-zA-Z0-9]/.test(password);
   
-  if (hasLowercase) charSetSize += 26
-  if (hasUppercase) charSetSize += 26
-  if (hasNumbers) charSetSize += 10
-  if (hasSymbols) charSetSize += 33 // Approximation of common symbols
+  if (hasLowercase) charSetSize += 26;
+  if (hasUppercase) charSetSize += 26;
+  if (hasNumbers) charSetSize += 10;
+  if (hasSymbols) charSetSize += 33; // Approximation of common symbols
   
   // Calculate entropy: log2(charSetSize^length)
-  const entropy = Math.log2(Math.pow(charSetSize, password.length))
+  const entropy = Math.log2(Math.pow(charSetSize, password.length));
   
-  return entropy
-}
+  return entropy;
+};
 
 // Get password strength info based on entropy
 const getPasswordStrengthInfo = (entropy: number) => {
-  if (entropy === 0) return { strength: 0, label: "No password", color: "bg-gray-300" }
-  if (entropy < 28) return { strength: 25, label: "Very weak", color: "bg-red-500" }
-  if (entropy < 36) return { strength: 50, label: "Weak", color: "bg-orange-500" }
-  if (entropy < 60) return { strength: 75, label: "Good", color: "bg-yellow-500" }
-  return { strength: 100, label: "Strong", color: "bg-green-500" }
-}
+  if (entropy === 0) return { strength: 0, label: 'No password', color: 'bg-gray-300' };
+  if (entropy < 28) return { strength: 25, label: 'Very weak', color: 'bg-red-500' };
+  if (entropy < 36) return { strength: 50, label: 'Weak', color: 'bg-orange-500' };
+  if (entropy < 60) return { strength: 75, label: 'Good', color: 'bg-yellow-500' };
+  return { strength: 100, label: 'Strong', color: 'bg-green-500' };
+};
 
 export default function LoginPage() {
-  const [step, setStep] = useState<"username" | "password" | "passkey" | "register">("username")
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [email, setEmail] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [errorMessage, setErrorMessage] = useState("")
-  const [passwordEntropy, setPasswordEntropy] = useState(0)
-  const [passwordStrength, setPasswordStrength] = useState({ strength: 0, label: "", color: "" })
+  const [step, setStep] = useState<'username' | 'password' | 'passkey' | 'register'>('username');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [passwordEntropy, setPasswordEntropy] = useState(0);
+  const [passwordStrength, setPasswordStrength] = useState({ strength: 0, label: '', color: '' });
   
-  const router = useRouter()
-  const { toast } = useToast()
-  const { login, register, isAuthenticated } = useAuth()
+  const router = useRouter();
+  const { toast } = useToast();
+  const { login, register, isAuthenticated } = useAuth();
 
   // Update password entropy when password changes
   useEffect(() => {
-    const entropy = calculatePasswordEntropy(password)
-    setPasswordEntropy(entropy)
-    setPasswordStrength(getPasswordStrengthInfo(entropy))
-  }, [password])
+    const entropy = calculatePasswordEntropy(password);
+    setPasswordEntropy(entropy);
+    setPasswordStrength(getPasswordStrengthInfo(entropy));
+  }, [password]);
 
   // If user is already authenticated, redirect to dashboard
   if (isAuthenticated) {
-    router.push("/")
-    return null
+    router.push('/');
+    return null;
   }
 
   const handleUsernameSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setErrorMessage("")
+    e.preventDefault();
+    setErrorMessage('');
     if (!username) {
-      setErrorMessage("Username is required")
-      return
+      setErrorMessage('Username is required');
+      return;
     }
 
     // For now, we'll just go to password step
-    setStep("password")
-  }
+    setStep('password');
+  };
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setErrorMessage("")
+    e.preventDefault();
+    setErrorMessage('');
     
     if (!password) {
-      setErrorMessage("Password is required")
-      return
+      setErrorMessage('Password is required');
+      return;
     }
     
-    setIsLoading(true)
+    setIsLoading(true);
 
     try {
-      const success = await login(username, password)
+      const success = await login(username, password);
       
       if (success) {
         // Redirect handled by useAuth hook
-        router.push("/")
+        router.push('/');
       } else {
-        setIsLoading(false)
+        setIsLoading(false);
         // Error handling is done in the useAuth hook via toast notifications
         
         // To ensure error messages also appear in the UI, we need to wait a moment
         // for any potential error messages to be updated
         setTimeout(() => {
           if (!errorMessage) {
-            setErrorMessage("Login failed. Please check your credentials and try again.")
+            setErrorMessage('Login failed. Please check your credentials and try again.');
           }
-        }, 100)
+        }, 100);
       }
     } catch (error: any) {
-      setIsLoading(false)
+      setIsLoading(false);
       
       // Display the error message in the UI
       if (error.message) {
-        setErrorMessage(error.message)
+        setErrorMessage(error.message);
       } else {
-        setErrorMessage("Login failed. Please check your credentials and try again.")
+        setErrorMessage('Login failed. Please check your credentials and try again.');
       }
     }
-  }
+  };
 
   const handlePasskeySubmit = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
 
     try {
       // Passkey authentication is not implemented yet
       toast({
-        variant: "destructive",
-        title: "Not implemented",
-        description: "Passkey authentication is not implemented yet.",
-      })
-      setIsLoading(false)
+        variant: 'destructive',
+        title: 'Not implemented',
+        description: 'Passkey authentication is not implemented yet.',
+      });
+      setIsLoading(false);
     } catch (error) {
       toast({
-        variant: "destructive",
-        title: "Authentication failed",
-        description: "Passkey verification failed. Please try again.",
-      })
-      setIsLoading(false)
+        variant: 'destructive',
+        title: 'Authentication failed',
+        description: 'Passkey verification failed. Please try again.',
+      });
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setErrorMessage("")
+    e.preventDefault();
+    setErrorMessage('');
     
     // Validate fields
     if (!username) {
-      setErrorMessage("Username is required")
-      return
+      setErrorMessage('Username is required');
+      return;
     }
     
     if (!email) {
-      setErrorMessage("Email is required")
-      return
+      setErrorMessage('Email is required');
+      return;
     }
     
     if (!password) {
-      setErrorMessage("Password is required")
-      return
+      setErrorMessage('Password is required');
+      return;
     }
     
     if (password !== confirmPassword) {
-      setErrorMessage("Passwords do not match")
-      return
+      setErrorMessage('Passwords do not match');
+      return;
     }
     
     // Warn about weak passwords but don't prevent registration
     if (passwordEntropy < 36) {
-      const confirm = window.confirm("Your password is weak and may be easy to guess. Are you sure you want to continue with this password?")
-      if (!confirm) return
+      const confirm = window.confirm('Your password is weak and may be easy to guess. Are you sure you want to continue with this password?');
+      if (!confirm) return;
     }
     
-    setIsLoading(true)
+    setIsLoading(true);
     
     try {
-      const success = await register(username, email, password)
+      const success = await register(username, email, password);
       
       if (success) {
         // Redirect handled by useAuth hook
         toast({
-          title: "Account created successfully",
-          description: "Welcome to Credential Proxy!",
-        })
-        router.push("/")
+          title: 'Account created successfully',
+          description: 'Welcome to Credential Proxy!',
+        });
+        router.push('/');
       } else {
-        setIsLoading(false)
+        setIsLoading(false);
         // The error is handled in the useAuth hook via toast notifications,
         // but we should check if there's an error message we need to display in the UI
         
@@ -201,29 +201,29 @@ export default function LoginPage() {
         // for any potential error messages to be updated
         setTimeout(() => {
           if (!errorMessage) {
-            setErrorMessage("Registration failed. Please check your inputs and try again.")
+            setErrorMessage('Registration failed. Please check your inputs and try again.');
           }
-        }, 100)
+        }, 100);
       }
     } catch (error: any) {
-      setIsLoading(false)
+      setIsLoading(false);
       
       // Display the error message in the UI
       if (error.message) {
-        setErrorMessage(error.message)
+        setErrorMessage(error.message);
       } else {
-        setErrorMessage("Registration failed. Please check your inputs and try again.")
+        setErrorMessage('Registration failed. Please check your inputs and try again.');
       }
     }
-  }
+  };
 
   const resetFlow = () => {
-    setStep("username")
-    setPassword("")
-    setEmail("")
-    setConfirmPassword("")
-    setErrorMessage("")
-  }
+    setStep('username');
+    setPassword('');
+    setEmail('');
+    setConfirmPassword('');
+    setErrorMessage('');
+  };
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -238,13 +238,13 @@ export default function LoginPage() {
             </div>
             <CardTitle className="text-2xl text-center">Credential Proxy</CardTitle>
             <CardDescription className="text-center">
-              {step === "username"
-                ? "Enter your username to continue"
-                : step === "password"
+              {step === 'username'
+                ? 'Enter your username to continue'
+                : step === 'password'
                   ? `Welcome back, ${username}`
-                  : step === "passkey"
+                  : step === 'passkey'
                     ? `Verify with passkey, ${username}`
-                    : "Create a new account"}
+                    : 'Create a new account'}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -255,7 +255,7 @@ export default function LoginPage() {
               </Alert>
             )}
             
-            {step === "username" && (
+            {step === 'username' && (
               <form onSubmit={handleUsernameSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="username">Username</Label>
@@ -279,7 +279,7 @@ export default function LoginPage() {
               </form>
             )}
 
-            {step === "password" && (
+            {step === 'password' && (
               <form onSubmit={handlePasswordSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -303,17 +303,17 @@ export default function LoginPage() {
                   </div>
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Authenticating..." : "Sign in"}
+                  {isLoading ? 'Authenticating...' : 'Sign in'}
                 </Button>
                 <div className="text-center">
-                  <Button variant="link" className="text-xs" onClick={() => setStep("passkey")}>
+                  <Button variant="link" className="text-xs" onClick={() => setStep('passkey')}>
                     Use passkey instead
                   </Button>
                 </div>
               </form>
             )}
 
-            {step === "passkey" && (
+            {step === 'passkey' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <Label>Passkey Authentication</Label>
@@ -330,17 +330,17 @@ export default function LoginPage() {
                   </p>
                 </div>
                 <Button onClick={handlePasskeySubmit} className="w-full" disabled={isLoading}>
-                  {isLoading ? "Verifying..." : "Verify with passkey"}
+                  {isLoading ? 'Verifying...' : 'Verify with passkey'}
                 </Button>
                 <div className="text-center">
-                  <Button variant="link" className="text-xs" onClick={() => setStep("password")}>
+                  <Button variant="link" className="text-xs" onClick={() => setStep('password')}>
                     Use password instead
                   </Button>
                 </div>
               </div>
             )}
 
-            {step === "register" && (
+            {step === 'register' && (
               <form onSubmit={handleRegisterSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="register-username">Username</Label>
@@ -444,11 +444,11 @@ export default function LoginPage() {
                       </div>
                     </>
                   ) : (
-                    "Create account"
+                    'Create account'
                   )}
                 </Button>
                 <div className="text-center">
-                  <Button variant="link" className="text-xs" onClick={() => setStep("username")}>
+                  <Button variant="link" className="text-xs" onClick={() => setStep('username')}>
                     Back to login
                   </Button>
                 </div>
@@ -465,10 +465,10 @@ export default function LoginPage() {
               </div>
             </div>
             <Tabs defaultValue="login" className="w-full" onValueChange={(value) => {
-              if (value === "register") {
-                setStep("register")
+              if (value === 'register') {
+                setStep('register');
               } else {
-                setStep("username")
+                setStep('username');
               }
             }}>
               <TabsList className="grid w-full grid-cols-2">
@@ -480,6 +480,6 @@ export default function LoginPage() {
         </Card>
       </main>
     </div>
-  )
+  );
 }
 

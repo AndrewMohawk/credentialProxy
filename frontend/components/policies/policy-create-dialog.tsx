@@ -1,6 +1,7 @@
-"use client"
+'use client';
 
-import { Button } from "@/components/ui/button"
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -8,38 +9,37 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { useState } from "react"
-import { Check, ChevronsUpDown } from "lucide-react"
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Check, ChevronsUpDown } from 'lucide-react';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from '@/components/ui/select';
 import {
   Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
-} from "@/components/ui/command"
+} from '@/components/ui/command';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
+} from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import { 
   PolicyTemplate,
   POLICY_TYPES_DISPLAY
-} from "@/lib/types/policy"
-import { FormDescription } from "@/components/ui/form"
+} from '@/lib/types/policy';
+import { FormDescription } from '@/components/ui/form';
 
 // Define policy form data interface for better type safety
 interface PolicyFormData {
@@ -54,6 +54,7 @@ interface PolicyFormData {
   pluginId?: string;
   credentialId?: string;
   configuration: Record<string, any>;
+  scope: 'GLOBAL' | 'PLUGIN' | 'CREDENTIAL' | null;
   [key: string]: any;
 }
 
@@ -65,6 +66,7 @@ interface PolicyCreateDialogProps {
   plugins?: Array<{id: string, name: string}> | null
   credentials?: Array<{id: string, name: string}> | null
   templates?: PolicyTemplate[]
+  preselectedScope?: 'GLOBAL' | 'PLUGIN' | 'CREDENTIAL' | null
 }
 
 export function PolicyCreateDialog({
@@ -74,100 +76,127 @@ export function PolicyCreateDialog({
   isCreating,
   plugins = [],
   credentials = [],
-  templates = []
+  templates = [],
+  preselectedScope = null
 }: PolicyCreateDialogProps) {
-  const [policyType, setPolicyType] = useState<string>("")
+  const [policyType, setPolicyType] = useState<string>('ALLOW_LIST');
   const [formData, setFormData] = useState<PolicyFormData>({
-    name: "",
-    description: "",
-    type: "",
+    name: '',
+    description: '',
+    type: 'ALLOW_LIST',
     isEnabled: true,
-    pattern: "",
+    pattern: '',
     maxCount: 0,
-    startTime: "",
-    endTime: "",
-    pluginId: "",
-    credentialId: "",
-    configuration: {}
-  })
-  const [pluginOpen, setPluginOpen] = useState(false)
-  const [credentialOpen, setCredentialOpen] = useState(false)
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("")
-  const [isPluginsLoading, setIsPluginsLoading] = useState(false)
-  const [isCredentialsLoading, setIsCredentialsLoading] = useState(false)
+    startTime: '',
+    endTime: '',
+    pluginId: '',
+    credentialId: '',
+    configuration: {},
+    scope: preselectedScope || 'GLOBAL'
+  });
+  const [pluginOpen, setPluginOpen] = useState(false);
+  const [credentialOpen, setCredentialOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+  const [isPluginsLoading, setIsPluginsLoading] = useState(false);
+  const [isCredentialsLoading, setIsCredentialsLoading] = useState(false);
+
+  // Set initial form data when dialog opens or scope changes
+  useEffect(() => {
+    if (open) {
+      // Set defaults based on preselected scope
+      const initialFormData = {
+        name: '',
+        description: '',
+        type: 'ALLOW_LIST', // Default type
+        isEnabled: true,
+        pattern: '',
+        maxCount: 0,
+        startTime: '',
+        endTime: '',
+        pluginId: '',
+        credentialId: '',
+        configuration: {},
+        scope: preselectedScope || 'GLOBAL' // Use preselected scope or default to GLOBAL
+      };
+      
+      setFormData(initialFormData);
+      setPolicyType('ALLOW_LIST');
+    }
+  }, [open, preselectedScope]);
 
   const handleTypeChange = (type: string) => {
-    setPolicyType(type)
-    setFormData((prev: PolicyFormData) => ({ ...prev, type }))
-  }
+    setPolicyType(type);
+    setFormData((prev: PolicyFormData) => ({ ...prev, type }));
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData((prev: PolicyFormData) => ({ ...prev, [name]: value }))
-  }
+    const { name, value } = e.target;
+    setFormData((prev: PolicyFormData) => ({ ...prev, [name]: value }));
+  };
 
   const handleSwitchChange = (checked: boolean) => {
-    setFormData((prev: PolicyFormData) => ({ ...prev, isEnabled: checked }))
-  }
+    setFormData((prev: PolicyFormData) => ({ ...prev, isEnabled: checked }));
+  };
 
   const handlePluginSelect = (pluginId: string) => {
-    setFormData((prev: PolicyFormData) => ({ ...prev, pluginId }))
-    setPluginOpen(false)
-  }
+    setFormData((prev: PolicyFormData) => ({ ...prev, pluginId }));
+    setPluginOpen(false);
+  };
 
   const handleCredentialSelect = (credentialId: string) => {
-    setFormData((prev: PolicyFormData) => ({ ...prev, credentialId }))
-    setCredentialOpen(false)
-  }
+    setFormData((prev: PolicyFormData) => ({ ...prev, credentialId }));
+    setCredentialOpen(false);
+  };
 
   const handleTemplateSelect = (templateId: string) => {
-    setSelectedTemplate(templateId)
-    const template = templates.find(t => t.id === templateId)
+    setSelectedTemplate(templateId);
+    const template = templates.find(t => t.id === templateId);
     
     if (template) {
-      setPolicyType(template.type)
+      setPolicyType(template.type);
       // Adapt the template data to our form format
       setFormData({
         ...formData,
         name: template.name,
-        description: template.description || "",
+        description: template.description || '',
         type: template.type,
         // Use template config instead of these specific fields
         configuration: template.configTemplate || {}
-      })
+      });
     }
-  }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSave(formData)
-  }
+    e.preventDefault();
+    onSave(formData);
+  };
 
   const resetForm = () => {
-    setPolicyType("")
+    setPolicyType('ALLOW_LIST');
     setFormData({
-      name: "",
-      description: "",
-      type: "",
+      name: '',
+      description: '',
+      type: 'ALLOW_LIST',
       isEnabled: true,
-      pattern: "",
+      pattern: '',
       maxCount: 0,
-      startTime: "",
-      endTime: "",
-      pluginId: "",
-      credentialId: "",
-      configuration: {}
-    })
-    setSelectedTemplate("")
-  }
+      startTime: '',
+      endTime: '',
+      pluginId: '',
+      credentialId: '',
+      configuration: {},
+      scope: 'GLOBAL'
+    });
+    setSelectedTemplate('');
+  };
 
   // Reset form when dialog is closed
   const handleOpenChange = (open: boolean) => {
     if (!open) {
-      resetForm()
+      resetForm();
     }
-    onOpenChange(open)
-  }
+    onOpenChange(open);
+  };
 
   // Get the array of policy types
   const policyTypeKeys = Object.keys(POLICY_TYPES_DISPLAY).map(index => {
@@ -281,8 +310,8 @@ export function PolicyCreateDialog({
                       className="w-full justify-between"
                     >
                       {formData.pluginId
-                        ? (plugins || []).find((plugin) => plugin.id === formData.pluginId)?.name || "Unknown plugin"
-                        : "Select plugin..."}
+                        ? (plugins || []).find((plugin) => plugin.id === formData.pluginId)?.name || 'Unknown plugin'
+                        : 'Select plugin...'}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
@@ -293,7 +322,7 @@ export function PolicyCreateDialog({
                       <CommandGroup>
                         {!plugins || plugins.length === 0 ? (
                           <CommandItem value="no-plugins" disabled>
-                            {isPluginsLoading ? "Loading plugins..." : "No plugins found"}
+                            {isPluginsLoading ? 'Loading plugins...' : 'No plugins found'}
                           </CommandItem>
                         ) : (
                           plugins.map((plugin) => (
@@ -307,8 +336,8 @@ export function PolicyCreateDialog({
                             >
                               <Check
                                 className={cn(
-                                  "mr-2 h-4 w-4",
-                                  formData.pluginId === plugin.id ? "opacity-100" : "opacity-0"
+                                  'mr-2 h-4 w-4',
+                                  formData.pluginId === plugin.id ? 'opacity-100' : 'opacity-0'
                                 )}
                               />
                               {plugin.name}
@@ -338,8 +367,8 @@ export function PolicyCreateDialog({
                       className="w-full justify-between"
                     >
                       {formData.credentialId
-                        ? (credentials || []).find((credential) => credential.id === formData.credentialId)?.name || "Unknown credential"
-                        : "Select credential..."}
+                        ? (credentials || []).find((credential) => credential.id === formData.credentialId)?.name || 'Unknown credential'
+                        : 'Select credential...'}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
@@ -350,7 +379,7 @@ export function PolicyCreateDialog({
                       <CommandGroup>
                         {!credentials || credentials.length === 0 ? (
                           <CommandItem value="no-credentials" disabled>
-                            {isCredentialsLoading ? "Loading credentials..." : "No credentials found"}
+                            {isCredentialsLoading ? 'Loading credentials...' : 'No credentials found'}
                           </CommandItem>
                         ) : (
                           credentials.map((credential) => (
@@ -364,8 +393,8 @@ export function PolicyCreateDialog({
                             >
                               <Check
                                 className={cn(
-                                  "mr-2 h-4 w-4",
-                                  formData.credentialId === credential.id ? "opacity-100" : "opacity-0"
+                                  'mr-2 h-4 w-4',
+                                  formData.credentialId === credential.id ? 'opacity-100' : 'opacity-0'
                                 )}
                               />
                               {credential.name}
@@ -458,7 +487,7 @@ export function PolicyCreateDialog({
                   Creating...
                 </>
               ) : (
-                "Create Policy"
+                'Create Policy'
               )}
             </Button>
           </DialogFooter>

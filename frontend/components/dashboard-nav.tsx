@@ -1,50 +1,50 @@
-"use client"
+'use client';
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Shield, LogOut, Settings, Key, Users, ClipboardList, Activity, BarChart2 } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { useAuth } from "@/hooks/use-auth"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { ModeToggle } from "@/components/mode-toggle"
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Shield, LogOut, Settings, Key, Users, ClipboardList, Activity, BarChart2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/use-auth';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ModeToggle } from '@/components/mode-toggle';
 
 const navItems = [
   {
-    title: "Dashboard",
-    href: "/",
+    title: 'Dashboard',
+    href: '/',
     icon: BarChart2,
   },
   {
-    title: "Credentials",
-    href: "/credentials",
+    title: 'Credentials',
+    href: '/credentials',
     icon: Key,
   },
   {
-    title: "Applications",
-    href: "/applications",
+    title: 'Applications',
+    href: '/applications',
     icon: Users,
   },
   {
-    title: "Policies",
-    href: "/policies",
+    title: 'Policies',
+    href: '/policies',
     icon: ClipboardList,
   },
   {
-    title: "Audit Logs",
-    href: "/audit-logs",
+    title: 'Audit Logs',
+    href: '/audit-logs',
     icon: Activity,
   },
-]
+];
 
 export function DashboardNav() {
-  const pathname = usePathname()
-  const { user, logout } = useAuth()
+  const pathname = usePathname();
+  const { user, logout } = useAuth();
   
   const initials = user?.username 
-    ? user.username.split(" ").map(n => n[0]).join("").toUpperCase()
-    : "U"
+    ? user.username.split(' ').map(n => n[0]).join('').toUpperCase()
+    : 'U';
 
   return (
     <div className="sticky top-0 z-10 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -60,10 +60,10 @@ export function DashboardNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "group flex h-10 w-max items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50",
+                'group flex h-10 w-max items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50',
                 pathname === item.href
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground"
+                  ? 'bg-accent text-accent-foreground'
+                  : 'text-muted-foreground'
               )}
             >
               <item.icon className="mr-2 h-4 w-4" />
@@ -116,10 +116,10 @@ export function DashboardNav() {
             key={item.href}
             href={item.href}
             className={cn(
-              "flex h-9 items-center justify-center rounded-md px-3 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50",
+              'flex h-9 items-center justify-center rounded-md px-3 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50',
               pathname === item.href
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground"
+                ? 'bg-accent text-accent-foreground'
+                : 'text-muted-foreground'
             )}
           >
             <item.icon className="h-4 w-4 mr-1" />
@@ -128,5 +128,5 @@ export function DashboardNav() {
         ))}
       </nav>
     </div>
-  )
+  );
 } 

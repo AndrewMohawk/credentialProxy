@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { createContext, useContext, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useToast } from "./use-toast";
-import { jwtDecode } from "jwt-decode";
-import apiClient, { extractErrorMessage } from "@/lib/api-client";
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useToast } from './use-toast';
+import { jwtDecode } from 'jwt-decode';
+import apiClient, { extractErrorMessage } from '@/lib/api-client';
 
 // Define types for our authentication context
 type User = {
@@ -49,26 +49,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     
     // Remove from localStorage
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("auth_user");
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
     
     // Clear API client token
     apiClient.clearToken();
     
     // Redirect to login page
-    router.push("/login");
+    router.push('/login');
     
     toast({
-      title: "Session expired",
-      description: "Your session has expired. Please log in again.",
-      variant: "destructive"
+      title: 'Session expired',
+      description: 'Your session has expired. Please log in again.',
+      variant: 'destructive'
     });
   };
 
   // Initialize auth state from localStorage on component mount
   useEffect(() => {
-    const storedToken = localStorage.getItem("auth_token");
-    const storedUser = localStorage.getItem("auth_user");
+    const storedToken = localStorage.getItem('auth_token');
+    const storedUser = localStorage.getItem('auth_user');
 
     if (storedToken && storedUser) {
       try {
@@ -78,10 +78,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Set token in the API client
         apiClient.setToken(storedToken);
       } catch (error) {
-        console.error("Failed to parse stored user:", error);
+        console.error('Failed to parse stored user:', error);
         // Clear invalid storage data
-        localStorage.removeItem("auth_token");
-        localStorage.removeItem("auth_user");
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
       }
     }
     
@@ -114,15 +114,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(userData);
         
         // Update localStorage and auth state
-        localStorage.setItem("auth_token", authToken);
-        localStorage.setItem("auth_user", JSON.stringify(userData));
+        localStorage.setItem('auth_token', authToken);
+        localStorage.setItem('auth_user', JSON.stringify(userData));
         
         // Set token in API client
         apiClient.setToken(authToken);
         
         toast({
-          title: "Welcome back!",
-          description: "You've successfully logged in.",
+          title: 'Welcome back!',
+          description: 'You\'ve successfully logged in.',
         });
         
         setIsLoading(false);
@@ -137,9 +137,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Login error:', error);
       
       toast({
-        variant: "destructive",
-        title: "Authentication failed",
-        description: error.message || "An error occurred during login",
+        variant: 'destructive',
+        title: 'Authentication failed',
+        description: error.message || 'An error occurred during login',
       });
       
       setIsLoading(false);
@@ -176,15 +176,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(userData);
         
         // Update localStorage and auth state
-        localStorage.setItem("auth_token", authToken);
-        localStorage.setItem("auth_user", JSON.stringify(userData));
+        localStorage.setItem('auth_token', authToken);
+        localStorage.setItem('auth_user', JSON.stringify(userData));
         
         // Set token in API client
         apiClient.setToken(authToken);
         
         toast({
-          title: "Registration successful!",
-          description: "Your account has been created.",
+          title: 'Registration successful!',
+          description: 'Your account has been created.',
         });
         
         setIsLoading(false);
@@ -198,9 +198,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Registration error:', error);
       
       toast({
-        variant: "destructive",
-        title: "Registration failed",
-        description: error.message || "An error occurred during registration",
+        variant: 'destructive',
+        title: 'Registration failed',
+        description: error.message || 'An error occurred during registration',
       });
       
       setIsLoading(false);

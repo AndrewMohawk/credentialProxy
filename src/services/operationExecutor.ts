@@ -60,22 +60,23 @@ export const executeOperation = async (
  */
 export function mapCredentialTypeToPluginId(credentialType: string): string {
   switch (credentialType) {
-    case 'API_KEY':
-      return 'api-key';
-    case 'OAUTH':
-      return 'oauth';
-    case 'COOKIE':
-      return 'cookie';
-    case 'ETHEREUM_KEY':
-      return 'ethereum';
-    case 'DATABASE':
-      return 'database';
-    default:
-      // If the credential type matches a plugin ID directly, use it
-      const pluginManager = getPluginManager();
-      if (pluginManager.getPlugin(credentialType)) {
-        return credentialType;
-      }
-      throw new Error(`Unsupported credential type: ${credentialType}`);
+  case 'API_KEY':
+    return 'api-key';
+  case 'OAUTH':
+    return 'oauth';
+  case 'COOKIE':
+    return 'cookie';
+  case 'ETHEREUM_KEY':
+    return 'ethereum';
+  case 'DATABASE':
+    return 'database';
+  default: {
+    // If the credential type matches a plugin ID directly, use it
+    const pluginManager = getPluginManager();
+    if (pluginManager.getPlugin(credentialType)) {
+      return credentialType;
+    }
+    throw new Error(`Unsupported credential type: ${credentialType}`);
+  }
   }
 } 

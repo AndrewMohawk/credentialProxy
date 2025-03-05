@@ -72,32 +72,30 @@ enum PolicyType {
   PATTERN_MATCH
 }
 
-// Policy model
+// Policy model to store security policies for credentials
 model Policy {
   id            String       @id @default(uuid())
-  name          String
-  description   String?      // Optional description field
-  type          PolicyType
-  scope         String       @default("CREDENTIAL") // Values: GLOBAL, CREDENTIAL, PLUGIN
-  configuration Json // Policy-specific configuration
-  credentialId  String?      // Optional for GLOBAL scope
-  credential    Credential?  @relation(fields: [credentialId], references: [id], onDelete: Cascade)
-  pluginId      String?      // For PLUGIN scope policies
-  applicationId String?
-  application   Application? @relation(fields: [applicationId], references: [id])
-  // For COUNT_BASED policies
-  currentCount  Int?         @default(0)
-  maxCount      Int?
-  // For TIME_BASED policies
-  startTime     DateTime?
-  endTime       DateTime?
-  // For PATTERN_MATCH policies
-  pattern       String?
-  // Common fields
-  auditEvents   AuditEvent[]
-  isEnabled     Boolean      @default(true)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
+  name          String
+  description   String?
+  type          String       // Policy type (ALLOW_LIST, DENY_LIST, TIME_BASED, etc.)
+  config        Json         // JSON configuration for the policy
+  enabled       Boolean      @default(true)
+  version       Int          @default(1)
+  
+  // Relations
+  credentialId  String
+  credential    Credential   @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  createdBy     String?      // User ID who created this policy
+  
+  // Added missing relations
+  applications  Application[]
+  auditEvents   AuditEvent[]
+  
+  // Indexes
+  @@index([credentialId])
+  @@index([type])
 }
 
 // Application model for third-party apps

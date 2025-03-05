@@ -7,7 +7,7 @@
  * Note: This is for development testing only and should not be included in production.
  */
 
-import apiClient from "@/lib/api-client";
+import apiClient from '@/lib/api-client';
 
 /**
  * Test the API client with different mock response formats

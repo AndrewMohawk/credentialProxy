@@ -1,6 +1,6 @@
-"use client"
+'use client';
 
-import * as React from "react"
+import * as React from 'react';
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -11,11 +11,11 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
-} from "@tanstack/react-table"
-import { ArrowUpDown, MoreHorizontal, Search } from "lucide-react"
+} from '@tanstack/react-table';
+import { ArrowUpDown, MoreHorizontal, Search } from 'lucide-react';
 
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,10 +23,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 
 type Application = {
   id: string
@@ -34,82 +34,82 @@ type Application = {
   owner: string
   createdAt: string
   lastActive: string
-  status: "active" | "inactive" | "pending"
+  status: 'active' | 'inactive' | 'pending'
   credentialCount: number
 }
 
 const data: Application[] = [
   {
-    id: "app_1",
-    name: "Analytics Dashboard",
-    owner: "Data Team",
-    createdAt: "2023-01-15",
-    lastActive: "2023-07-20",
-    status: "active",
+    id: 'app_1',
+    name: 'Analytics Dashboard',
+    owner: 'Data Team',
+    createdAt: '2023-01-15',
+    lastActive: '2023-07-20',
+    status: 'active',
     credentialCount: 3,
   },
   {
-    id: "app_2",
-    name: "Monitoring Service",
-    owner: "DevOps",
-    createdAt: "2023-02-10",
-    lastActive: "2023-07-19",
-    status: "active",
+    id: 'app_2',
+    name: 'Monitoring Service',
+    owner: 'DevOps',
+    createdAt: '2023-02-10',
+    lastActive: '2023-07-19',
+    status: 'active',
     credentialCount: 2,
   },
   {
-    id: "app_3",
-    name: "Payment Processor",
-    owner: "Finance Dept",
-    createdAt: "2023-03-05",
-    lastActive: "2023-07-21",
-    status: "active",
+    id: 'app_3',
+    name: 'Payment Processor',
+    owner: 'Finance Dept',
+    createdAt: '2023-03-05',
+    lastActive: '2023-07-21',
+    status: 'active',
     credentialCount: 4,
   },
   {
-    id: "app_4",
-    name: "Legacy Integration",
-    owner: "IT Operations",
-    createdAt: "2022-11-20",
-    lastActive: "2023-06-30",
-    status: "inactive",
+    id: 'app_4',
+    name: 'Legacy Integration',
+    owner: 'IT Operations',
+    createdAt: '2022-11-20',
+    lastActive: '2023-06-30',
+    status: 'inactive',
     credentialCount: 1,
   },
   {
-    id: "app_5",
-    name: "Deployment Tool",
-    owner: "DevOps",
-    createdAt: "2023-04-12",
-    lastActive: "2023-07-18",
-    status: "active",
+    id: 'app_5',
+    name: 'Deployment Tool',
+    owner: 'DevOps',
+    createdAt: '2023-04-12',
+    lastActive: '2023-07-18',
+    status: 'active',
     credentialCount: 2,
   },
   {
-    id: "app_6",
-    name: "Test Automation",
-    owner: "QA Team",
-    createdAt: "2023-01-30",
-    lastActive: "2023-05-15",
-    status: "inactive",
+    id: 'app_6',
+    name: 'Test Automation',
+    owner: 'QA Team',
+    createdAt: '2023-01-30',
+    lastActive: '2023-05-15',
+    status: 'inactive',
     credentialCount: 1,
   },
   {
-    id: "app_7",
-    name: "New Integration",
-    owner: "Product Team",
-    createdAt: "2023-07-15",
-    lastActive: "Never",
-    status: "pending",
+    id: 'app_7',
+    name: 'New Integration',
+    owner: 'Product Team',
+    createdAt: '2023-07-15',
+    lastActive: 'Never',
+    status: 'pending',
     credentialCount: 0,
   },
-]
+];
 
 export const columns: ColumnDef<Application>[] = [
   {
-    id: "select",
+    id: 'select',
     header: ({ table }) => (
       <Checkbox
-        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')}
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         aria-label="Select all"
       />
@@ -125,53 +125,53 @@ export const columns: ColumnDef<Application>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "name",
+    accessorKey: 'name',
     header: ({ column }) => {
       return (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
           Name
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
-      )
+      );
     },
-    cell: ({ row }) => <div>{row.getValue("name")}</div>,
+    cell: ({ row }) => <div>{row.getValue('name')}</div>,
   },
   {
-    accessorKey: "owner",
-    header: "Owner",
-    cell: ({ row }) => <div>{row.getValue("owner")}</div>,
+    accessorKey: 'owner',
+    header: 'Owner',
+    cell: ({ row }) => <div>{row.getValue('owner')}</div>,
   },
   {
-    accessorKey: "createdAt",
-    header: "Created",
-    cell: ({ row }) => <div>{row.getValue("createdAt")}</div>,
+    accessorKey: 'createdAt',
+    header: 'Created',
+    cell: ({ row }) => <div>{row.getValue('createdAt')}</div>,
   },
   {
-    accessorKey: "lastActive",
-    header: "Last Active",
-    cell: ({ row }) => <div>{row.getValue("lastActive")}</div>,
+    accessorKey: 'lastActive',
+    header: 'Last Active',
+    cell: ({ row }) => <div>{row.getValue('lastActive')}</div>,
   },
   {
-    accessorKey: "credentialCount",
-    header: "Credentials",
-    cell: ({ row }) => <div className="text-center">{row.getValue("credentialCount")}</div>,
+    accessorKey: 'credentialCount',
+    header: 'Credentials',
+    cell: ({ row }) => <div className="text-center">{row.getValue('credentialCount')}</div>,
   },
   {
-    accessorKey: "status",
-    header: "Status",
+    accessorKey: 'status',
+    header: 'Status',
     cell: ({ row }) => {
-      const status = row.getValue("status") as string
+      const status = row.getValue('status') as string;
       return (
-        <Badge variant={status === "active" ? "default" : status === "inactive" ? "secondary" : "outline"}>
+        <Badge variant={status === 'active' ? 'default' : status === 'inactive' ? 'secondary' : 'outline'}>
           {status}
         </Badge>
-      )
+      );
     },
   },
   {
-    id: "actions",
+    id: 'actions',
     cell: ({ row }) => {
-      const application = row.original
+      const application = row.original;
 
       return (
         <DropdownMenu>
@@ -195,15 +195,15 @@ export const columns: ColumnDef<Application>[] = [
             <DropdownMenuItem className="text-destructive">Revoke access</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      )
+      );
     },
   },
-]
+];
 
 export function ApplicationsTable() {
-  const [sorting, setSorting] = React.useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
-  const [rowSelection, setRowSelection] = React.useState({})
+  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [rowSelection, setRowSelection] = React.useState({});
 
   const table = useReactTable({
     data,
@@ -220,7 +220,7 @@ export function ApplicationsTable() {
       columnFilters,
       rowSelection,
     },
-  })
+  });
 
   return (
     <div>
@@ -229,8 +229,8 @@ export function ApplicationsTable() {
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search applications..."
-            value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-            onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)}
+            value={(table.getColumn('name')?.getFilterValue() as string) ?? ''}
+            onChange={(event) => table.getColumn('name')?.setFilterValue(event.target.value)}
             className="pl-8"
           />
         </div>
@@ -245,7 +245,7 @@ export function ApplicationsTable() {
                     <TableHead key={header.id}>
                       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
-                  )
+                  );
                 })}
               </TableRow>
             ))}
@@ -253,7 +253,7 @@ export function ApplicationsTable() {
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
                   ))}
@@ -282,6 +282,6 @@ export function ApplicationsTable() {
         </Button>
       </div>
     </div>
-  )
+  );
 }
 

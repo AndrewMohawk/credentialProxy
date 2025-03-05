@@ -1,8 +1,8 @@
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 // Format date for display
@@ -23,7 +23,7 @@ export function formatDate(dateString: string | null | undefined) {
       day: 'numeric' 
     }).format(date);
   } catch (error) {
-    console.error("Error formatting date:", error);
+    console.error('Error formatting date:', error);
     return 'Invalid date';
   }
 }
@@ -42,7 +42,7 @@ export function formatDateTime(dateString: string | null | undefined) {
     
     return date.toLocaleString();
   } catch (error) {
-    console.error("Error formatting datetime:", error);
+    console.error('Error formatting datetime:', error);
     return 'Invalid date';
   }
 }

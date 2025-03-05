@@ -1,0 +1,37 @@
+<%- include('../partials/header') %>
+
+<div class="container mx-auto px-4 py-8">
+  <div class="flex justify-between items-center mb-8">
+    <div>
+      <h1 class="text-3xl font-bold">Policy Analytics</h1>
+      <p class="text-gray-600">Monitor and optimize your credential access policies</p>
+    </div>
+    <div>
+      <a href="/policies" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+        Back to Policies
+      </a>
+    </div>
+  </div>
+
+  <div id="policy-analytics-root" data-credential-id="<%= locals.credentialId || '' %>">
+    <!-- The React component will be mounted here -->
+    <div class="flex justify-center items-center h-64">
+      <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Get the credential ID from the data attribute
+    const root = document.getElementById('policy-analytics-root');
+    const credentialId = root.getAttribute('data-credential-id');
+    
+    // Load the React component
+    window.renderPolicyAnalytics(root, {
+      credentialId: credentialId
+    });
+  });
+</script>
+
+<%- include('../partials/footer') %> 

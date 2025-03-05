@@ -1,12 +1,12 @@
-"use client"
+'use client';
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { Calendar, Filter } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { useAuth } from "@/hooks/use-auth"
-import axios from "axios"
-import { useToast } from "@/components/ui/use-toast"
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Calendar, Filter } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/use-auth';
+import axios from 'axios';
+import { useToast } from '@/components/ui/use-toast';
 import {
   Table,
   TableBody,
@@ -14,31 +14,31 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from '@/components/ui/table';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from '@/components/ui/card';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from '@/components/ui/select';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
-import { format } from "date-fns"
-import { Calendar as CalendarComponent } from "@/components/ui/calendar"
-import { DashboardShell } from "@/components/dashboard-shell"
-import { DashboardHeader } from "@/components/dashboard-header"
-import apiClient from "@/lib/api-client"
+} from '@/components/ui/popover';
+import { format } from 'date-fns';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { DashboardShell } from '@/components/dashboard-shell';
+import { DashboardHeader } from '@/components/dashboard-header';
+import apiClient from '@/lib/api-client';
 
 // Define the audit log type
 type AuditLog = {
@@ -97,38 +97,38 @@ const formatDetails = (details: any): string => {
 };
 
 export default function AuditLogsPage() {
-  const { isAuthenticated, token, isLoading } = useAuth()
-  const router = useRouter()
-  const { toast } = useToast()
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
-  const [isLoadingLogs, setIsLoadingLogs] = useState(true)
-  const [date, setDate] = useState<Date | undefined>(new Date())
-  const [typeFilter, setTypeFilter] = useState<string>("all")
-  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const { isAuthenticated, token, isLoading } = useAuth();
+  const router = useRouter();
+  const { toast } = useToast();
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(true);
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   // Get backend configuration from environment variables or use defaults
   const BACKEND_PORT = process.env.NEXT_PUBLIC_BACKEND_PORT || '4242';
   const BACKEND_HOST = process.env.NEXT_PUBLIC_BACKEND_HOST || 'localhost';
   // API URL from environment variables or default with configurable host and port
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || `http://${BACKEND_HOST}:${BACKEND_PORT}/api/v1`
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || `http://${BACKEND_HOST}:${BACKEND_PORT}/api/v1`;
 
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/login")
+      router.push('/login');
     }
-  }, [isLoading, isAuthenticated, router])
+  }, [isLoading, isAuthenticated, router]);
 
   // Fetch audit logs when component mounts and authenticated
   useEffect(() => {
     if (isAuthenticated && token) {
-      fetchAuditLogs()
+      fetchAuditLogs();
     }
-  }, [isAuthenticated, token, date, typeFilter, statusFilter])
+  }, [isAuthenticated, token, date, typeFilter, statusFilter]);
 
   // Function to fetch audit logs
   const fetchAuditLogs = async () => {
-    setIsLoadingLogs(true)
+    setIsLoadingLogs(true);
     try {
       const params = {
         date: date ? format(date, 'yyyy-MM-dd') : undefined,
@@ -139,23 +139,23 @@ export default function AuditLogsPage() {
       const response = await apiClient.get('/audit-logs', { params });
       
       if (response.success) {
-        setAuditLogs(response.data || [])
+        setAuditLogs(response.data || []);
       } else {
-        throw new Error(response.error || "Failed to fetch audit logs")
+        throw new Error(response.error || 'Failed to fetch audit logs');
       }
     } catch (error: any) {
-      console.error("Error fetching audit logs:", error)
+      console.error('Error fetching audit logs:', error);
       toast({
-        variant: "destructive",
-        title: "Error fetching audit logs",
-        description: error.message || "An error occurred while fetching audit logs."
-      })
+        variant: 'destructive',
+        title: 'Error fetching audit logs',
+        description: error.message || 'An error occurred while fetching audit logs.'
+      });
       // Initialize with empty array in case of error
-      setAuditLogs([])
+      setAuditLogs([]);
     } finally {
-      setIsLoadingLogs(false)
+      setIsLoadingLogs(false);
     }
-  }
+  };
 
   // Show loading state if still checking authentication
   if (isLoading) {
@@ -163,17 +163,17 @@ export default function AuditLogsPage() {
       <div className="flex min-h-screen items-center justify-center">
         <div className="animate-pulse">Loading audit logs...</div>
       </div>
-    )
+    );
   }
 
   // Show nothing if not authenticated (will be redirected)
   if (!isAuthenticated) {
-    return null
+    return null;
   }
 
   // Format date for display
   const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString)
+    const date = new Date(dateString);
     return new Intl.DateTimeFormat('en-US', { 
       year: 'numeric', 
       month: 'short', 
@@ -181,8 +181,8 @@ export default function AuditLogsPage() {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit'
-    }).format(date)
-  }
+    }).format(date);
+  };
 
   return (
     <DashboardShell>
@@ -193,7 +193,7 @@ export default function AuditLogsPage() {
           <PopoverTrigger asChild>
             <Button variant="outline" className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              {date ? format(date, "PPP") : "Pick a date"}
+              {date ? format(date, 'PPP') : 'Pick a date'}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="end">
@@ -252,9 +252,9 @@ export default function AuditLogsPage() {
               <Button 
                 variant="outline" 
                 onClick={() => {
-                  setDate(undefined)
-                  setTypeFilter("all")
-                  setStatusFilter("all")
+                  setDate(undefined);
+                  setTypeFilter('all');
+                  setStatusFilter('all');
                 }}
                 className="mt-4"
               >
@@ -305,6 +305,6 @@ export default function AuditLogsPage() {
         </CardContent>
       </Card>
     </DashboardShell>
-  )
+  );
 }
 

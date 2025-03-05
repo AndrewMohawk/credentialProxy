@@ -1,6 +1,6 @@
-import { DashboardShell } from "@/components/dashboard-shell"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { SettingsForm } from "@/components/settings-form"
+import { DashboardShell } from '@/components/dashboard-shell';
+import { DashboardHeader } from '@/components/dashboard-header';
+import { SettingsForm } from '@/components/settings-form';
 
 export default function SettingsPage() {
   return (
@@ -10,6 +10,6 @@ export default function SettingsPage() {
         <SettingsForm />
       </div>
     </DashboardShell>
-  )
+  );
 }
 

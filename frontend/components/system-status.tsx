@@ -1,20 +1,20 @@
-"use client"
+'use client';
 
-import { useEffect, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle, AlertTriangle, Activity, Clock, Server } from "lucide-react"
-import axios from "axios"
-import { useAuth } from "@/hooks/use-auth"
-import { Progress } from "@/components/ui/progress"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
+import { useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CheckCircle, AlertTriangle, Activity, Clock, Server } from 'lucide-react';
+import axios from 'axios';
+import { useAuth } from '@/hooks/use-auth';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 // Get backend configuration from environment variables or use defaults
 const BACKEND_PORT = process.env.NEXT_PUBLIC_BACKEND_PORT || '4242';
 const BACKEND_HOST = process.env.NEXT_PUBLIC_BACKEND_HOST || 'localhost';
 // API URL from environment variables or default with configurable host and port
-const API_URL = process.env.NEXT_PUBLIC_API_URL || `http://${BACKEND_HOST}:${BACKEND_PORT}/api/v1`
+const API_URL = process.env.NEXT_PUBLIC_API_URL || `http://${BACKEND_HOST}:${BACKEND_PORT}/api/v1`;
 
 type SystemMetrics = {
   apiStatus: boolean
@@ -34,40 +34,40 @@ type SystemMetrics = {
 }
 
 export function SystemStatus() {
-  const { token } = useAuth()
-  const [metrics, setMetrics] = useState<SystemMetrics | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { token } = useAuth();
+  const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Function to fetch system metrics
   const fetchSystemMetrics = async () => {
     try {
-      setLoading(true)
+      setLoading(true);
       // In a real app, this would call a dedicated endpoint
       // For demo purposes, we're using a timeout to simulate API call
       // and generating random data
       
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       // Create mock response data with randomized metrics
-      const currentTime = new Date()
-      const responseTime = Math.floor(Math.random() * 80) + 20 // 20-100ms
-      const cpuUsage = Math.floor(Math.random() * 40) + 10 // 10-50%
-      const memoryUsage = Math.floor(Math.random() * 60) + 20 // 20-80%
+      const currentTime = new Date();
+      const responseTime = Math.floor(Math.random() * 80) + 20; // 20-100ms
+      const cpuUsage = Math.floor(Math.random() * 40) + 10; // 10-50%
+      const memoryUsage = Math.floor(Math.random() * 60) + 20; // 20-80%
       
       // Generate historical data points (last 24 hours)
       const historicalData = Array.from({ length: 24 }, (_, i) => {
-        const timestamp = new Date(currentTime)
-        timestamp.setHours(timestamp.getHours() - (24 - i))
+        const timestamp = new Date(currentTime);
+        timestamp.setHours(timestamp.getHours() - (24 - i));
         
         return {
           timestamp: timestamp.toISOString(),
           responseTime: Math.floor(Math.random() * 100) + 10,
           cpuUsage: Math.floor(Math.random() * 60) + 10,
           memoryUsage: Math.floor(Math.random() * 80) + 10
-        }
-      })
+        };
+      });
       
       // Simulate a real API response with current and historical data
       const mockResponse = {
@@ -80,54 +80,54 @@ export function SystemStatus() {
         memoryUsage,
         lastUpdated: currentTime.toISOString(),
         historicalData
-      }
+      };
       
-      setMetrics(mockResponse)
-      setError(null)
+      setMetrics(mockResponse);
+      setError(null);
     } catch (err: any) {
-      console.error("Error fetching system metrics:", err)
-      setError(err.message || "Failed to fetch system metrics")
+      console.error('Error fetching system metrics:', err);
+      setError(err.message || 'Failed to fetch system metrics');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   // Fetch metrics on component mount
   useEffect(() => {
-    fetchSystemMetrics()
+    fetchSystemMetrics();
     
     // Set up interval for periodic updates (every 10 seconds)
     const intervalId = setInterval(() => {
-      fetchSystemMetrics()
-    }, 10000)
+      fetchSystemMetrics();
+    }, 10000);
     
     // Clean up interval on component unmount
-    return () => clearInterval(intervalId)
-  }, [])
+    return () => clearInterval(intervalId);
+  }, []);
 
   // Calculate overall status
   const allSystemsUp = metrics && metrics.apiStatus && 
-    metrics.credentialStoreStatus && metrics.queueStatus
+    metrics.credentialStoreStatus && metrics.queueStatus;
   
   // Format timestamp for display
   const formatLastUpdated = (timestamp: string) => {
-    if (!timestamp) return "Unknown"
+    if (!timestamp) return 'Unknown';
     
-    const date = new Date(timestamp)
-    return date.toLocaleTimeString()
-  }
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString();
+  };
   
   // Format chart time for display
   const formatChartTime = (timestamp: string) => {
-    if (!timestamp) return ""
+    if (!timestamp) return '';
     
-    const date = new Date(timestamp)
-    return `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`
-  }
+    const date = new Date(timestamp);
+    return `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+  };
   
   // Determine status color
-  const getStatusColor = (isUp: boolean) => isUp ? "text-green-500" : "text-red-500"
-  const getStatusIcon = (isUp: boolean) => isUp ? CheckCircle : AlertTriangle
+  const getStatusColor = (isUp: boolean) => isUp ? 'text-green-500' : 'text-red-500';
+  const getStatusIcon = (isUp: boolean) => isUp ? CheckCircle : AlertTriangle;
   
   // Format the chart data
   const chartData = metrics?.historicalData.map(item => ({
@@ -135,7 +135,7 @@ export function SystemStatus() {
     responseTime: item.responseTime,
     cpuUsage: item.cpuUsage,
     memoryUsage: item.memoryUsage
-  })) || []
+  })) || [];
 
   return (
     <div className="space-y-6">
@@ -153,14 +153,14 @@ export function SystemStatus() {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-2xl font-bold">
-                {allSystemsUp ? "Operational" : "Degraded"}
+                {allSystemsUp ? 'Operational' : 'Degraded'}
               </div>
               <p className="text-sm text-muted-foreground">
-                Last updated: {metrics ? formatLastUpdated(metrics.lastUpdated) : "Loading..."}
+                Last updated: {metrics ? formatLastUpdated(metrics.lastUpdated) : 'Loading...'}
               </p>
             </div>
-            <Badge variant={allSystemsUp ? "default" : "destructive"} className="text-xs px-2">
-              {allSystemsUp ? "All Systems Go" : "Attention Required"}
+            <Badge variant={allSystemsUp ? 'default' : 'destructive'} className="text-xs px-2">
+              {allSystemsUp ? 'All Systems Go' : 'Attention Required'}
             </Badge>
           </div>
           
@@ -175,7 +175,7 @@ export function SystemStatus() {
                 <span className="text-sm font-medium">API System</span>
               </div>
               <div className="text-xs text-muted-foreground">
-                {metrics?.apiStatus ? "Operational" : "Degraded"}
+                {metrics?.apiStatus ? 'Operational' : 'Degraded'}
               </div>
             </div>
             
@@ -189,7 +189,7 @@ export function SystemStatus() {
                 <span className="text-sm font-medium">Credential Store</span>
               </div>
               <div className="text-xs text-muted-foreground">
-                {metrics?.credentialStoreStatus ? "Operational" : "Degraded"}
+                {metrics?.credentialStoreStatus ? 'Operational' : 'Degraded'}
               </div>
             </div>
             
@@ -203,7 +203,7 @@ export function SystemStatus() {
                 <span className="text-sm font-medium">Queue System</span>
               </div>
               <div className="text-xs text-muted-foreground">
-                {metrics?.queueStatus ? "Operational" : "Degraded"}
+                {metrics?.queueStatus ? 'Operational' : 'Degraded'}
               </div>
             </div>
           </div>
@@ -235,7 +235,7 @@ export function SystemStatus() {
             <div className="text-2xl font-bold">{metrics?.cpuUsage || '--'}%</div>
             <Progress className="mt-2" value={metrics?.cpuUsage || 0} max={100} />
             <p className="mt-2 text-xs text-muted-foreground">
-              {metrics?.cpuUsage && metrics.cpuUsage > 70 ? "High load detected" : "Normal load"}
+              {metrics?.cpuUsage && metrics.cpuUsage > 70 ? 'High load detected' : 'Normal load'}
             </p>
           </CardContent>
         </Card>
@@ -249,7 +249,7 @@ export function SystemStatus() {
             <div className="text-2xl font-bold">{metrics?.memoryUsage || '--'}%</div>
             <Progress className="mt-2" value={metrics?.memoryUsage || 0} max={100} />
             <p className="mt-2 text-xs text-muted-foreground">
-              {metrics?.memoryUsage && metrics.memoryUsage > 80 ? "High usage" : "Normal usage"}
+              {metrics?.memoryUsage && metrics.memoryUsage > 80 ? 'High usage' : 'Normal usage'}
             </p>
           </CardContent>
         </Card>
@@ -329,6 +329,6 @@ export function SystemStatus() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
 

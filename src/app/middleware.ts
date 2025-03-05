@@ -15,12 +15,12 @@ export const configureMiddleware = (app: Express): void => {
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        connectSrc: ["'self'"],
-        imgSrc: ["'self'", "data:"],
-        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        defaultSrc: ['\'self\''],
+        scriptSrc: ['\'self\'', '\'unsafe-inline\''],
+        styleSrc: ['\'self\'', '\'unsafe-inline\''],
+        connectSrc: ['\'self\''],
+        imgSrc: ['\'self\'', 'data:'],
+        fontSrc: ['\'self\'', 'https://fonts.gstatic.com'],
       },
     },
     // Additional security headers

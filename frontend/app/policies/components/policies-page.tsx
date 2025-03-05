@@ -1,25 +1,27 @@
-"use client"
+'use client';
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { PlusCircle, AlertCircle, PlayCircle, Info } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
-import { Policy } from "@/lib/types/policy"
-import { usePolicies } from "@/hooks/policies/use-policies"
-import { usePlugins } from "@/hooks/plugins/use-plugins"
-import { useCredentials } from "@/hooks/credentials/use-credentials"
-import { PoliciesTable } from "@/components/policies/policies-table"
-import { PolicyViewDialog } from "@/components/policies/policy-view-dialog"
-import { PolicyEditDialog } from "@/components/policies/policy-edit-dialog"
-import { PolicyDeleteAlert } from "@/components/policies/policy-delete-alert"
-import { PolicyCreateDialog } from "@/components/policies/policy-create-dialog"
-import { MOCK_TEMPLATES } from "@/lib/types/policy"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { PolicyFlowVisualization } from "@/components/policies/policy-flow-visualization"
-import { DashboardShell } from "@/components/dashboard-shell"
-import { DashboardHeader } from "@/components/dashboard-header"
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { PlusCircle, AlertCircle, PlayCircle, Info } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import { Policy } from '@/lib/types/policy';
+import { usePolicies } from '@/hooks/policies/use-policies';
+import { usePlugins } from '@/hooks/plugins/use-plugins';
+import { useCredentials } from '@/hooks/credentials/use-credentials';
+import { PoliciesTable } from '@/components/policies/policies-table';
+import { PolicyViewDialog } from '@/components/policies/policy-view-dialog';
+import { PolicyEditDialog } from '@/components/policies/policy-edit-dialog';
+import { PolicyDeleteAlert } from '@/components/policies/policy-delete-alert';
+import { PolicyCreateDialog } from '@/components/policies/policy-create-dialog';
+import { PolicyWizardDialog } from '@/components/policies/policy-wizard-dialog';
+import { MOCK_TEMPLATES } from '@/lib/types/policy';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { PolicyFlowVisualization } from '@/components/policies/policy-flow-visualization';
+import { DashboardShell } from '@/components/dashboard-shell';
+import { DashboardHeader } from '@/components/dashboard-header';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 // Policy with strong typing
 interface PolicyWithDetails extends Policy {
@@ -37,16 +39,20 @@ interface UsageHistoryEntry {
 }
 
 export function PoliciesPage() {
-  // State management
-  const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const [viewDialogOpen, setViewDialogOpen] = useState(false)
-  const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [selectedPolicy, setSelectedPolicy] = useState<Policy | null>(null)
-  const [policyDetails, setPolicyDetails] = useState<PolicyWithDetails | null>(null)
-  const [usageHistory, setUsageHistory] = useState<UsageHistoryEntry[]>([])
-  const [selectedPolicyName, setSelectedPolicyName] = useState("")
-  const [isDeleting, setIsDeleting] = useState(false)
+  // State management for dialogs
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [wizardDialogOpen, setWizardDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  
+  // State for policy data
+  const [selectedPolicy, setSelectedPolicy] = useState<Policy | null>(null);
+  const [policyDetails, setPolicyDetails] = useState<PolicyWithDetails | null>(null);
+  const [usageHistory, setUsageHistory] = useState<UsageHistoryEntry[]>([]);
+  const [selectedPolicyName, setSelectedPolicyName] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [createPolicyScope, setCreatePolicyScope] = useState<'GLOBAL' | 'PLUGIN' | 'CREDENTIAL' | null>(null);
   
   // Use our custom hooks
   const { 
@@ -58,170 +64,207 @@ export function PoliciesPage() {
     deletePolicy,
     togglePolicyStatus,
     getPolicyDetails
-  } = usePolicies()
+  } = usePolicies();
   
   const {
     plugins,
     isLoading: isPluginsLoading,
     error: pluginsError
-  } = usePlugins()
+  } = usePlugins();
   
   const {
     credentials,
     isLoading: isCredentialsLoading,
     error: credentialsError
-  } = useCredentials()
+  } = useCredentials();
   
-  const isLoading = isPoliciesLoading || isPluginsLoading || isCredentialsLoading
-  const error = policiesError || pluginsError || credentialsError
+  const isLoading = isPoliciesLoading || isPluginsLoading || isCredentialsLoading;
+  const error = policiesError || pluginsError || credentialsError;
   
-  const { toast } = useToast()
+  const { toast } = useToast();
   
   // Filter policies by type - only if policies exists
   const globalPolicies = !policies ? [] : policies.filter((policy: Policy) => 
-    policy.scope === "GLOBAL" || 
+    policy.scope === 'GLOBAL' || 
     (!policy.pluginId && !policy.credentialId)
-  )
+  );
   
   const pluginPolicies = !policies ? [] : policies.filter((policy: Policy) => 
-    policy.pluginId && policy.scope === "PLUGIN"
-  )
+    policy.pluginId && policy.scope === 'PLUGIN'
+  );
   
   const credentialPolicies = !policies ? [] : policies.filter((policy: Policy) => 
-    policy.credentialId && policy.scope === "CREDENTIAL"
-  )
+    policy.credentialId && policy.scope === 'CREDENTIAL'
+  );
   
   // View policy details
   const handleViewPolicy = async (policy: Policy) => {
-    setSelectedPolicy(policy)
+    setSelectedPolicy(policy);
     
     try {
-      const details = await getPolicyDetails(policy.id)
+      const details = await getPolicyDetails(policy.id);
       if (details) {
-        setPolicyDetails(details)
-        setUsageHistory(details.usageHistory || [])
-        setViewDialogOpen(true)
+        setPolicyDetails(details);
+        setUsageHistory(details.usageHistory || []);
+        setViewDialogOpen(true);
       }
     } catch (err) {
       toast({
-        title: "Error",
-        description: "Failed to fetch policy details",
-        variant: "destructive"
-      })
+        title: 'Error',
+        description: 'Failed to fetch policy details',
+        variant: 'destructive'
+      });
     }
-  }
+  };
   
   // Edit policy
   const handleEditPolicy = (policy: Policy) => {
-    setSelectedPolicy(policy)
+    setSelectedPolicy(policy);
     setPolicyDetails({
       ...policy,
       isEnabled: policy.isActive
-    })
-    setEditDialogOpen(true)
-  }
+    });
+    setEditDialogOpen(true);
+  };
   
   // Start deletion process
   const handleDeleteInitiate = (policy: Policy) => {
-    setSelectedPolicy(policy)
-    setSelectedPolicyName(policy.name)
-    setDeleteDialogOpen(true)
-  }
+    setSelectedPolicy(policy);
+    setSelectedPolicyName(policy.name);
+    setDeleteDialogOpen(true);
+  };
   
   // Confirm and execute deletion
   const handleDeleteConfirm = async () => {
-    if (!selectedPolicy) return
+    if (!selectedPolicy) return;
     
-    setIsDeleting(true)
+    setIsDeleting(true);
     try {
-      await deletePolicy(selectedPolicy.id)
+      await deletePolicy(selectedPolicy.id);
       toast({
-        title: "Success",
+        title: 'Success',
         description: `Policy "${selectedPolicyName}" has been deleted`,
-      })
-      setDeleteDialogOpen(false)
+      });
+      setDeleteDialogOpen(false);
     } catch (err) {
       toast({
-        title: "Error",
-        description: "Failed to delete the policy",
-        variant: "destructive"
-      })
+        title: 'Error',
+        description: 'Failed to delete the policy',
+        variant: 'destructive'
+      });
     } finally {
-      setIsDeleting(false)
+      setIsDeleting(false);
     }
-  }
+  };
   
   // Toggle policy status
   const handleToggleStatus = async (policyId: string, isActive: boolean) => {
     try {
-      await togglePolicyStatus(policyId, isActive)
+      await togglePolicyStatus(policyId, isActive);
       toast({
-        title: "Success",
+        title: 'Success',
         description: `Policy status updated to ${isActive ? 'active' : 'inactive'}`,
-      })
+      });
     } catch (err) {
       toast({
-        title: "Error",
-        description: "Failed to update policy status",
-        variant: "destructive"
-      })
+        title: 'Error',
+        description: 'Failed to update policy status',
+        variant: 'destructive'
+      });
     }
-  }
+  };
   
-  // Create new policy
+  // Handle opening the create wizard dialog with specific scope
+  const handleOpenWizardDialog = (scope: 'GLOBAL' | 'PLUGIN' | 'CREDENTIAL' | null = null, targetId?: string) => {
+    setCreatePolicyScope(scope);
+    
+    // Create an initial policy with the selected scope and target ID
+    const initialPolicy: Partial<Policy> = {
+      scope: scope || 'GLOBAL',
+      isActive: true
+    };
+    
+    // Set the credential or plugin ID if provided
+    if (scope === 'CREDENTIAL' && targetId) {
+      initialPolicy.credentialId = targetId;
+    } else if (scope === 'PLUGIN' && targetId) {
+      initialPolicy.pluginId = targetId;
+    }
+    
+    setSelectedPolicy(initialPolicy as Policy);
+    setWizardDialogOpen(true);
+  };
+  
+  // For backward compatibility - keep the original dialog handler
+  const handleOpenCreateDialog = (scope: 'GLOBAL' | 'PLUGIN' | 'CREDENTIAL' | null = null) => {
+    setCreatePolicyScope(scope);
+    setCreateDialogOpen(true);
+  };
+  
+  // Save new policy
   const handleCreatePolicy = async (policyData: any) => {
     try {
-      // Determine the scope based on provided IDs
-      let scope = "GLOBAL"
-      if (policyData.credentialId) {
-        scope = "CREDENTIAL"
-      } else if (policyData.pluginId) {
-        scope = "PLUGIN"
+      // Inject scope if it was pre-selected and not already set
+      if (createPolicyScope && !policyData.scope) {
+        policyData.scope = createPolicyScope;
       }
       
       // Format the data for the API
       const formattedData = {
         ...policyData,
-        scope,
-        isActive: policyData.isEnabled,
-        priority: 100, // Default priority
-        config: { 
-          ...policyData.configuration 
-        }
+        // If isEnabled is defined but isActive is not, use isEnabled value
+        isActive: policyData.isActive !== undefined ? policyData.isActive : policyData.isEnabled,
+        // Set a default priority if not provided
+        priority: policyData.priority || 100,
+      };
+      
+      // Ensure config exists
+      if (!formattedData.config && policyData.configuration) {
+        formattedData.config = { ...policyData.configuration };
       }
       
-      // Add type-specific data
+      // Add type-specific data if coming from the form
       if (policyData.type === 'PATTERN_MATCH' && policyData.pattern) {
-        formattedData.config.pattern = policyData.pattern
+        formattedData.config = formattedData.config || {};
+        formattedData.config.pattern = policyData.pattern;
       }
       
       if (policyData.type === 'COUNT_BASED' && policyData.maxCount) {
-        formattedData.config.maxCount = parseInt(policyData.maxCount)
+        formattedData.config = formattedData.config || {};
+        formattedData.config.maxCount = parseInt(policyData.maxCount);
       }
       
       if (policyData.type === 'TIME_BASED') {
-        if (policyData.startTime) formattedData.config.startTime = policyData.startTime
-        if (policyData.endTime) formattedData.config.endTime = policyData.endTime
+        formattedData.config = formattedData.config || {};
+        if (policyData.startTime) formattedData.config.startTime = policyData.startTime;
+        if (policyData.endTime) formattedData.config.endTime = policyData.endTime;
       }
       
-      await createPolicy(formattedData)
-      setCreateDialogOpen(false)
+      // Log the formatted data for debugging
+      console.log('Creating policy with data:', formattedData);
+      
+      await createPolicy(formattedData);
+      
+      // Close both dialogs to be safe
+      setCreateDialogOpen(false);
+      setWizardDialogOpen(false);
+      
       toast({
-        title: "Success",
+        title: 'Success',
         description: `Policy "${policyData.name}" has been created`,
-      })
+      });
     } catch (err) {
       toast({
-        title: "Error",
-        description: "Failed to create policy",
-        variant: "destructive"
-      })
+        title: 'Error',
+        description: 'Failed to create policy',
+        variant: 'destructive'
+      });
     }
-  }
+  };
   
   // Save edited policy
   const handleSavePolicy = async (updatedData: any) => {
-    if (!selectedPolicy) return
+    if (!selectedPolicy) return;
     
     try {
       // Format the data for the API
@@ -229,46 +272,69 @@ export function PoliciesPage() {
         ...updatedData,
         id: selectedPolicy.id,
         isActive: updatedData.isEnabled
-      }
+      };
       
-      await updatePolicy(selectedPolicy.id, formattedData)
-      setEditDialogOpen(false)
+      await updatePolicy(selectedPolicy.id, formattedData);
+      setEditDialogOpen(false);
       toast({
-        title: "Success",
+        title: 'Success',
         description: `Policy "${updatedData.name}" has been updated`,
-      })
+      });
     } catch (err) {
       toast({
-        title: "Error",
-        description: "Failed to update policy",
-        variant: "destructive"
-      })
+        title: 'Error',
+        description: 'Failed to update policy',
+        variant: 'destructive'
+      });
     }
-  }
+  };
   
-  // Test policy function
+  // Test policy function from header
   const handleTestPolicy = () => {
+    // Check if there's at least one policy to test
+    if (policies && policies.length > 0) {
+      // For now, just select the first policy to test
+      handleViewPolicy(policies[0]);
+      // In the view dialog, we could add a "Test" button
+    } else {
+      toast({
+        title: 'No Policies Available',
+        description: 'Create a policy first before testing',
+      });
+    }
+  };
+  
+  // Test specific policy
+  const handleTestSpecificPolicy = (policy: any) => {
+    // Navigate to policy simulator or open a simulator dialog
+    // For now we'll just show a toast
     toast({
-      title: "Test Policy",
-      description: "Policy testing feature will be available soon",
-    })
-  }
+      title: 'Policy Simulator',
+      description: `Testing policy: ${policy.name}`,
+    });
+    
+    // Close the view dialog
+    setViewDialogOpen(false);
+    
+    // Here you could navigate to a dedicated simulator page
+    // or open a simulator dialog
+  };
   
   // Show error notification if policies loading failed
   useEffect(() => {
     if (error) {
       toast({
-        title: "Error",
-        description: "Failed to load policies",
-        variant: "destructive"
-      })
+        title: 'Error',
+        description: 'Failed to load policies',
+        variant: 'destructive'
+      });
     }
-  }, [error, toast])
+  }, [error, toast]);
   
   // Display appropriate loading and error states
   if (error) {
     return (
-      <DashboardShell>
+      <>
         <DashboardHeader
           heading="Policy Management"
           text="Define and control access to your credentials"
@@ -280,14 +346,14 @@ export function PoliciesPage() {
             {error}
           </AlertDescription>
         </Alert>
-      </DashboardShell>
-    )
+      </>
+    );
   }
   
   // Render loading state if policies are loading
   if (isLoading) {
     return (
-      <DashboardShell>
+      <>
         <DashboardHeader
           heading="Policy Management"
           text="Define and control access to your credentials"
@@ -295,12 +361,12 @@ export function PoliciesPage() {
         <div className="flex justify-center items-center h-[40vh]">
           <div className="animate-spin h-8 w-8 border-4 border-primary rounded-full border-t-transparent"></div>
         </div>
-      </DashboardShell>
+      </>
     );
   }
   
   return (
-    <DashboardShell>
+    <>
       <DashboardHeader
         heading="Policy Management"
         text="Define and control access to your credentials"
@@ -311,18 +377,18 @@ export function PoliciesPage() {
               <TooltipTrigger asChild>
                 <Button variant="outline" onClick={handleTestPolicy}>
                   <PlayCircle className="mr-2 h-4 w-4" />
-                  Test Policy
+                  Policy Simulator
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Test a policy against sample requests</p>
+                <p>Test existing policies against sample requests</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
           
-          <Button onClick={() => setCreateDialogOpen(true)}>
+          <Button onClick={() => handleOpenWizardDialog()}>
             <PlusCircle className="mr-2 h-4 w-4" />
-            Create Policy
+            Create New Policy
           </Button>
         </div>
       </DashboardHeader>
@@ -333,10 +399,22 @@ export function PoliciesPage() {
           {/* Global Policies */}
           <Card className="shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Global Policies</CardTitle>
-              <CardDescription className="text-xs">
-                Policies that apply to all credential access requests
-              </CardDescription>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle className="text-base">Global Policies</CardTitle>
+                  <CardDescription className="text-xs">
+                    Policies that apply to all credential access requests
+                  </CardDescription>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => handleOpenWizardDialog('GLOBAL')}
+                >
+                  <PlusCircle className="mr-1 h-4 w-4" />
+                  Add Policy
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="pt-0">
               <PoliciesTable 
@@ -354,10 +432,49 @@ export function PoliciesPage() {
           {/* Plugin Policies */}
           <Card className="shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Plugin Policies</CardTitle>
-              <CardDescription className="text-xs">
-                Policies that apply to specific plugins
-              </CardDescription>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle className="text-base">Plugin Policies</CardTitle>
+                  <CardDescription className="text-xs">
+                    Policies that apply to specific plugins
+                  </CardDescription>
+                </div>
+                <div className="flex space-x-2">
+                  {plugins && plugins.length > 0 ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                        >
+                          <PlusCircle className="mr-1 h-4 w-4" />
+                          Add Policy
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuLabel>Select Plugin</DropdownMenuLabel>
+                        {plugins.map(plugin => (
+                          <DropdownMenuItem 
+                            key={plugin.id}
+                            onClick={() => handleOpenWizardDialog('PLUGIN', plugin.id)}
+                          >
+                            {plugin.name}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleOpenWizardDialog('PLUGIN')}
+                    >
+                      <PlusCircle className="mr-1 h-4 w-4" />
+                      Add Policy
+                    </Button>
+                  )}
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="pt-0">
               <PoliciesTable 
@@ -377,10 +494,49 @@ export function PoliciesPage() {
           {/* Credential Policies */}
           <Card className="shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Credential Policies</CardTitle>
-              <CardDescription className="text-xs">
-                Policies that apply to specific credentials
-              </CardDescription>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle className="text-base">Credential Policies</CardTitle>
+                  <CardDescription className="text-xs">
+                    Policies that apply to specific credentials
+                  </CardDescription>
+                </div>
+                <div className="flex space-x-2">
+                  {credentials && credentials.length > 0 ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                        >
+                          <PlusCircle className="mr-1 h-4 w-4" />
+                          Add Policy
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuLabel>Select Credential</DropdownMenuLabel>
+                        {credentials.map(credential => (
+                          <DropdownMenuItem 
+                            key={credential.id}
+                            onClick={() => handleOpenWizardDialog('CREDENTIAL', credential.id)}
+                          >
+                            {credential.name}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleOpenWizardDialog('CREDENTIAL')}
+                    >
+                      <PlusCircle className="mr-1 h-4 w-4" />
+                      Add Policy
+                    </Button>
+                  )}
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="pt-0">
               <PoliciesTable 
@@ -448,6 +604,15 @@ export function PoliciesPage() {
       </div>
       
       {/* Dialogs */}
+      <PolicyWizardDialog
+        open={wizardDialogOpen}
+        onOpenChange={setWizardDialogOpen}
+        onComplete={handleCreatePolicy}
+        preselectedScope={createPolicyScope}
+        initialPolicy={selectedPolicy as Partial<Policy>}
+        credentialId={createPolicyScope === 'CREDENTIAL' ? selectedPolicy?.credentialId : undefined}
+      />
+      
       <PolicyCreateDialog 
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
@@ -456,6 +621,7 @@ export function PoliciesPage() {
         plugins={plugins}
         credentials={credentials}
         templates={MOCK_TEMPLATES}
+        preselectedScope={createPolicyScope}
       />
       
       <PolicyViewDialog 
@@ -465,11 +631,10 @@ export function PoliciesPage() {
         usageHistory={usageHistory}
         isLoading={false}
         onEdit={() => {
-          setViewDialogOpen(false)
-          if (selectedPolicy) {
-            handleEditPolicy(selectedPolicy)
-          }
+          setViewDialogOpen(false);
+          handleEditPolicy(selectedPolicy!);
         }}
+        onTest={handleTestSpecificPolicy}
       />
       
       <PolicyEditDialog 
@@ -487,6 +652,6 @@ export function PoliciesPage() {
         policyName={selectedPolicyName}
         isDeleting={isDeleting}
       />
-    </DashboardShell>
-  )
+    </>
+  );
 } 

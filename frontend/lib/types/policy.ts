@@ -68,7 +68,7 @@ export type PolicyData = {
   name: string;
   description: string;
   type: string;
-  scope: "GLOBAL" | "PLUGIN" | "CREDENTIAL";
+  scope: 'GLOBAL' | 'PLUGIN' | 'CREDENTIAL';
   priority: number;
   isEnabled: boolean;
   config: Record<string, any>;

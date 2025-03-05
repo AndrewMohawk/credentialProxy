@@ -33,42 +33,42 @@ export async function getUsageMetrics(
     }
     
     // If not in cache, query the database
-    let startDate = new Date();
+    const startDate = new Date();
     
     switch (timeWindow) {
-      case 'hourly':
-        startDate.setHours(startDate.getHours() - 1);
-        break;
-      case 'daily':
-        startDate.setDate(startDate.getDate() - 1);
-        break;
-      case 'weekly':
-        startDate.setDate(startDate.getDate() - 7);
-        break;
-      case 'monthly':
-        startDate.setMonth(startDate.getMonth() - 1);
-        break;
+    case 'hourly':
+      startDate.setHours(startDate.getHours() - 1);
+      break;
+    case 'daily':
+      startDate.setDate(startDate.getDate() - 1);
+      break;
+    case 'weekly':
+      startDate.setDate(startDate.getDate() - 7);
+      break;
+    case 'monthly':
+      startDate.setMonth(startDate.getMonth() - 1);
+      break;
     }
     
     let usage = 0;
     
     // Different handling based on metric type
     switch (metricType) {
-      case 'request_count':
-        usage = await getRequestCount(credentialId, startDate);
-        break;
-      case 'api_calls':
-        usage = await getAPICallCount(credentialId, startDate);
-        break;
-      case 'eth_value':
-        usage = await getEthereumValue(credentialId, startDate);
-        break;
-      case 'data_transferred':
-        usage = await getDataTransferred(credentialId, startDate);
-        break;
-      default:
-        logger.warn(`Unknown metric type: ${metricType}`);
-        return 0;
+    case 'request_count':
+      usage = await getRequestCount(credentialId, startDate);
+      break;
+    case 'api_calls':
+      usage = await getAPICallCount(credentialId, startDate);
+      break;
+    case 'eth_value':
+      usage = await getEthereumValue(credentialId, startDate);
+      break;
+    case 'data_transferred':
+      usage = await getDataTransferred(credentialId, startDate);
+      break;
+    default:
+      logger.warn(`Unknown metric type: ${metricType}`);
+      return 0;
     }
     
     // Cache the result
@@ -137,16 +137,16 @@ export async function recordUsage(
  */
 function getTimeWindowTTL(timeWindow: TimeWindow): number {
   switch (timeWindow) {
-    case 'hourly':
-      return 3600; // 1 hour
-    case 'daily':
-      return 86400; // 24 hours
-    case 'weekly':
-      return 604800; // 7 days
-    case 'monthly':
-      return 2592000; // 30 days
-    default:
-      return 3600; // Default to 1 hour
+  case 'hourly':
+    return 3600; // 1 hour
+  case 'daily':
+    return 86400; // 24 hours
+  case 'weekly':
+    return 604800; // 7 days
+  case 'monthly':
+    return 2592000; // 30 days
+  default:
+    return 3600; // Default to 1 hour
   }
 }
 

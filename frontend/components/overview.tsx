@@ -1,13 +1,13 @@
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 
 const data = [
-  { name: "Jan", total: 1800 },
-  { name: "Feb", total: 2100 },
-  { name: "Mar", total: 2200 },
-  { name: "Apr", total: 2400 },
-  { name: "May", total: 2800 },
-  { name: "Jun", total: 3600 },
-]
+  { name: 'Jan', total: 1800 },
+  { name: 'Feb', total: 2100 },
+  { name: 'Mar', total: 2200 },
+  { name: 'Apr', total: 2400 },
+  { name: 'May', total: 2800 },
+  { name: 'Jun', total: 3600 },
+];
 
 export function Overview() {
   return (
@@ -45,6 +45,6 @@ export function Overview() {
         </ResponsiveContainer>
       </div>
     </div>
-  )
+  );
 }
 

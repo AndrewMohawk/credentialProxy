@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { CredentialPlugin, RiskAssessment, OperationMetadata, PolicyConfig as PluginPolicyConfig } from '../plugins/CredentialPlugin';
+import { CredentialPlugin, RiskAssessment, OperationMetadata, PolicyConfig, PolicyBlueprint, OperationRiskAssessment } from '../plugins/CredentialPlugin';
 
 // Mock PolicyType enum since we're having issues with it
 export enum PolicyType {
@@ -24,8 +24,8 @@ export const createMockPluginDirectory = (baseDir: string): string => {
   return pluginDir;
 };
 
-// Define the PolicyConfig interface for testing
-export interface PolicyConfig {
+// Rename interface to TestPolicyConfig to avoid conflicts
+export interface TestPolicyConfig {
   type: PolicyType;
   description: string;
   id: string;
@@ -78,45 +78,43 @@ export class MockCredentialPlugin implements CredentialPlugin {
       dataAccess: 'read',
     },
     calculateRiskForOperation: (operation: string, context?: any) => {
-      return this.supportedOperations.find(op => op.name === operation)?.riskLevel || this.riskAssessment.baseScore;
-    }
+      return 5;
+    },
   };
   
   supportedOperations: OperationMetadata[] = [
     {
-      name: 'TEST_OPERATION',
-      description: 'A test operation',
-      requiredParams: ['param1'],
-      optionalParams: ['param2'],
+      name: 'login',
+      description: 'Log in to the service',
+      requiredParams: ['username', 'password'],
+      optionalParams: [],
+      riskLevel: 7,
+      applicablePolicies: [PolicyType.TIME_BASED, PolicyType.ALLOW_LIST],
+    },
+    {
+      name: 'getData',
+      description: 'Get data from the service',
+      requiredParams: ['dataId'],
+      optionalParams: ['format'],
       riskLevel: 3,
-      applicablePolicies: [
-        PolicyType.ALLOW_LIST,
-        PolicyType.DENY_LIST,
-        PolicyType.COUNT_BASED
-      ],
-      recommendedPolicies: [PolicyType.ALLOW_LIST],
-      suggestedRateLimits: {
-        perMinute: 10,
-        perHour: 100,
-        perDay: 1000
-      }
+      applicablePolicies: [PolicyType.ALLOW_LIST],
     },
   ];
   
-  supportedPolicies: PluginPolicyConfig[] = [
+  supportedPolicies: PolicyConfig[] = [
     {
       type: PolicyType.ALLOW_LIST,
-      description: 'Allow specific operations',
-      defaultConfig: {},
+      description: 'Allow access from specified IPs or domains'
+    },
+    {
+      type: PolicyType.TIME_BASED,
+      description: 'Allow access only during specified times'
     },
   ];
   
   async validateCredential(credentialData: Record<string, any>): Promise<string | null> {
-    if (!credentialData.username) {
-      return 'Missing username';
-    }
-    if (!credentialData.password) {
-      return 'Missing password';
+    if (!credentialData.username || !credentialData.password) {
+      return 'Missing required fields: username and password';
     }
     return null;
   }
@@ -126,15 +124,11 @@ export class MockCredentialPlugin implements CredentialPlugin {
     credentialData: Record<string, any>,
     parameters: Record<string, any>
   ): Promise<any> {
-    if (operation === 'TEST_OPERATION') {
-      return {
-        success: true,
-        data: {
-          operation,
-          credentials: credentialData,
-          parameters,
-        },
-      };
+    if (operation === 'login') {
+      return { success: true, token: 'mock-token' };
+    }
+    if (operation === 'getData') {
+      return { data: 'mock-data', id: parameters.dataId };
     }
     throw new Error(`Unsupported operation: ${operation}`);
   }
@@ -150,9 +144,72 @@ export class MockCredentialPlugin implements CredentialPlugin {
   }> {
     return {
       isValid: true,
+      expiresAt: new Date(Date.now() + 86400000), // 24 hours from now
       issues: [],
       recommendations: [],
-      lastChecked: new Date()
+      lastChecked: new Date(),
+    };
+  }
+
+  // Add the missing methods required by the CredentialPlugin interface
+  getPolicyBlueprints(): PolicyBlueprint[] {
+    return [
+      {
+        id: 'mock-blueprint-1',
+        name: 'Allow List Policy',
+        description: 'Allow access from specific IPs or domains',
+        type: PolicyType.ALLOW_LIST,
+        configuration: {
+          allowedIps: ['127.0.0.1', '192.168.1.1'],
+          allowedDomains: ['example.com']
+        },
+        customizationSchema: {
+          type: 'object',
+          properties: {
+            allowedIps: {
+              type: 'array',
+              items: { type: 'string' }
+            },
+            allowedDomains: {
+              type: 'array',
+              items: { type: 'string' }
+            }
+          }
+        },
+        securityLevel: 'standard',
+        riskLevel: 3,
+        explanation: ['Restricts access to specified IPs or domains'],
+        recommendedFor: ['login', 'getData']
+      }
+    ];
+  }
+  
+  getOperationsMap(): Map<string, OperationMetadata> {
+    const map = new Map<string, OperationMetadata>();
+    this.supportedOperations.forEach(op => map.set(op.name, op));
+    return map;
+  }
+  
+  async assessOperationRisk(
+    credentialData: Record<string, any>,
+    operation: string
+  ): Promise<OperationRiskAssessment> {
+    return {
+      score: 5,
+      factors: ['Basic credential type', 'Standard operation risk'],
+      recommendations: this.getPolicyBlueprints(),
+      details: {
+        credentialRisk: 3,
+        operationRisk: 4,
+        contextRisk: 2,
+        mitigations: [
+          {
+            type: 'policy',
+            impact: -2,
+            description: 'Apply IP restriction policies'
+          }
+        ]
+      }
     };
   }
 }

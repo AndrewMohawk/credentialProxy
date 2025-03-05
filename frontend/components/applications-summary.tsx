@@ -1,4 +1,5 @@
-import { AppWindow } from "lucide-react"
+import React from 'react';
+import { AppWindow } from 'lucide-react';
 
 export function ApplicationsSummary() {
   return (
@@ -25,6 +26,6 @@ export function ApplicationsSummary() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 

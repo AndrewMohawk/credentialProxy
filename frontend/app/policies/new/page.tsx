@@ -1,30 +1,46 @@
-"use client"
+'use client';
 
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/hooks/use-auth"
+import React from 'react';
+import { useRouter } from 'next/navigation';
+import { PolicyWizard } from '@/components/policies/policy-wizard';
+import { Policy } from '@/lib/types/policy';
+import { toast } from '@/components/ui/use-toast';
+import { DashboardShell } from '@/components/dashboard-shell';
+import { DashboardHeader } from '@/components/dashboard-header';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 
 export default function NewPolicyPage() {
-  const { isAuthenticated, isLoading } = useAuth()
-  const router = useRouter()
+  const router = useRouter();
 
-  useEffect(() => {
-    if (!isLoading) {
-      if (!isAuthenticated) {
-        router.push("/login")
-      } else {
-        // Redirect to the policies page with a query parameter to open the dialog
-        router.push("/policies?createPolicy=true")
-      }
-    }
-  }, [isLoading, isAuthenticated, router])
+  const handleComplete = (policy: Policy) => {
+    toast({
+      title: 'Policy Created',
+      description: `Successfully created policy: ${policy.name}`,
+    });
+    router.push('/policies');
+  };
+
+  const handleCancel = () => {
+    router.push('/policies');
+  };
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="animate-pulse flex flex-col items-center">
-        <div className="h-12 w-12 rounded-full bg-primary mb-4" />
-        <p className="text-muted-foreground">Redirecting to policy creation...</p>
-      </div>
-    </div>
-  )
+    <DashboardShell>
+      <DashboardHeader
+        heading="Create New Policy"
+        text="Define a new policy to control access to your credentials"
+      >
+        <Button variant="outline" onClick={handleCancel}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Policies
+        </Button>
+      </DashboardHeader>
+      
+      <PolicyWizard
+        onComplete={handleComplete}
+        onCancel={handleCancel}
+      />
+    </DashboardShell>
+  );
 } 

@@ -41,7 +41,7 @@ async function createAuditLog(type: AuditType, details: any, userId?: string) {
  * Generate a JWT token for a user
  */
 function generateToken(user: { id: string; username: string }) {
-  // @ts-ignore - Ignoring type issues with jwt.sign
+  // @ts-expect-error - Handling potential type issues with jwt.sign
   return jwt.sign(
     { id: user.id, username: user.username },
     JWT_SECRET,

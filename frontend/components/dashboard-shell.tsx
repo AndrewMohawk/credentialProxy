@@ -1,8 +1,8 @@
-import type React from "react"
-import { MainNav } from "@/components/main-nav"
-import { ModeToggle } from "@/components/mode-toggle"
-import { GlassCard } from "@/components/glass-card"
-import { BackgroundAnimation } from "@/components/background-animation"
+import type React from 'react';
+import { MainNav } from '@/components/main-nav';
+import { ModeToggle } from '@/components/mode-toggle';
+import { GlassCard } from '@/components/glass-card';
+import { BackgroundAnimation } from '@/components/background-animation';
 
 interface DashboardShellProps {
   children: React.ReactNode
@@ -38,6 +38,6 @@ export function DashboardShell({ children }: DashboardShellProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
