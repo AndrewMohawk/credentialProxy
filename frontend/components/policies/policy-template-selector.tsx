@@ -1,142 +1,291 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
+import React, { useEffect, useState } from 'react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Shield, AlertTriangle, Clock, Hash, Check, ChevronRight } from 'lucide-react';
-import { Policy, POLICY_TYPES, MOCK_TEMPLATES, PolicyTemplate } from '@/lib/types/policy';
-import { policyApi } from '@/lib/api-client';
+import { Shield, Key, Database, Cloud, Globe } from 'lucide-react';
+import { Credential } from '@/lib/types/credential';
+import { Plugin } from '@/lib/types/plugin';
+
+// Define the PolicyTemplate interface
+interface PolicyTemplate {
+  id: string;
+  name: string;
+  description: string;
+  type: string;
+  tags: string[];
+  policyConfig: {
+    name: string;
+    description: string;
+    scope: 'global' | 'credential' | 'plugin';
+    credentialId?: string;
+    pluginId?: string;
+    rules: any[];
+  };
+}
+
+// Mock templates for development
+const MOCK_TEMPLATES: PolicyTemplate[] = [
+  {
+    id: '1',
+    name: 'Read-Only AWS Access',
+    description: 'Allow read-only access to AWS resources',
+    type: 'aws',
+    tags: ['aws', 'readonly', 'security'],
+    policyConfig: {
+      name: 'AWS Read-Only Access',
+      description: 'This policy allows read-only access to AWS resources',
+      scope: 'credential',
+      rules: [
+        {
+          action: 'allow',
+          verb: 'read',
+          resource: '*',
+        },
+        {
+          action: 'deny',
+          verb: 'write',
+          resource: '*',
+        },
+      ],
+    },
+  },
+  {
+    id: '2',
+    name: 'Database Backup Only',
+    description: 'Allow only database backup operations',
+    type: 'database',
+    tags: ['database', 'backup', 'security'],
+    policyConfig: {
+      name: 'Database Backup Only',
+      description: 'This policy allows only database backup operations',
+      scope: 'credential',
+      rules: [
+        {
+          action: 'allow',
+          verb: 'backup',
+          resource: 'database',
+        },
+        {
+          action: 'deny',
+          verb: '*',
+          resource: '*',
+        },
+      ],
+    },
+  },
+  {
+    id: '3',
+    name: 'Global API Rate Limiting',
+    description: 'Apply rate limiting to all API calls',
+    type: 'global',
+    tags: ['api', 'rate-limiting', 'global'],
+    policyConfig: {
+      name: 'Global API Rate Limiting',
+      description: 'This policy applies rate limiting to all API calls',
+      scope: 'global',
+      rules: [
+        {
+          action: 'limit',
+          verb: 'call',
+          resource: 'api',
+          limit: 100,
+          period: '1h',
+        },
+      ],
+    },
+  },
+  {
+    id: '4',
+    name: 'Twitter Read-Only Access',
+    description: 'Allow only reading tweets and profile information',
+    type: 'oauth',
+    tags: ['twitter', 'readonly', 'social'],
+    policyConfig: {
+      name: 'Twitter Read-Only Access',
+      description: 'This policy allows reading tweets and profile information, but not posting',
+      scope: 'credential',
+      rules: [
+        {
+          action: 'allow',
+          verb: 'read',
+          resource: 'tweets',
+        },
+        {
+          action: 'allow',
+          verb: 'view',
+          resource: 'profile',
+        },
+        {
+          action: 'deny',
+          verb: 'post',
+          resource: 'tweets',
+        },
+      ],
+    },
+  },
+  {
+    id: '5',
+    name: 'Twitter Full Access',
+    description: 'Allow reading and posting tweets',
+    type: 'oauth',
+    tags: ['twitter', 'fullaccess', 'social'],
+    policyConfig: {
+      name: 'Twitter Full Access',
+      description: 'This policy allows reading and posting tweets, and viewing profile information',
+      scope: 'credential',
+      rules: [
+        {
+          action: 'allow',
+          verb: 'read',
+          resource: 'tweets',
+        },
+        {
+          action: 'allow',
+          verb: 'post',
+          resource: 'tweets',
+        },
+        {
+          action: 'allow',
+          verb: 'view',
+          resource: 'profile',
+        },
+      ],
+    },
+  },
+  {
+    id: '6',
+    name: 'Twitter Post-Only Access',
+    description: 'Allow only posting tweets',
+    type: 'oauth',
+    tags: ['twitter', 'posting', 'social'],
+    policyConfig: {
+      name: 'Twitter Post-Only Access',
+      description: 'This policy allows posting tweets but not reading or viewing profiles',
+      scope: 'credential',
+      rules: [
+        {
+          action: 'allow',
+          verb: 'post',
+          resource: 'tweets',
+        },
+        {
+          action: 'deny',
+          verb: 'read',
+          resource: 'tweets',
+        },
+        {
+          action: 'deny',
+          verb: 'view',
+          resource: 'profile',
+        },
+      ],
+    },
+  },
+];
 
 export interface PolicyTemplateSelectorProps {
-  credential: string | undefined;
-  onSelectTemplate: (template: { policyConfig: Partial<Policy> }) => void;
+  availableCredentials?: Credential[];
+  availablePlugins?: Plugin[];
+  preselectedCredentialId?: string;
+  preselectedScope?: 'global' | 'credential' | 'plugin';
+  onTemplateSelect: (template: PolicyTemplate['policyConfig']) => void;
 }
 
 export const PolicyTemplateSelector: React.FC<PolicyTemplateSelectorProps> = ({
-  credential,
-  onSelectTemplate
+  availableCredentials,
+  availablePlugins,
+  preselectedCredentialId,
+  preselectedScope,
+  onTemplateSelect
 }) => {
   const [templates, setTemplates] = useState<PolicyTemplate[]>(MOCK_TEMPLATES);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadTemplates() {
-      setIsLoading(true);
-      setError(null);
-
+    const loadTemplates = async () => {
       try {
-        if (credential) {
-          // In a real implementation, we would fetch the templates from the API
-          // For now, we'll use the mock templates
-          // const response = await policyApi.getTemplates(credential);
-          // setTemplates(response.data);
-          setTemplates(MOCK_TEMPLATES); // Using mock templates for now
-        }
+        // In a real implementation, we would fetch the templates from the API
+        // For now, we'll use the mock templates
+        // const response = await policyApi.getTemplates();
+        // setTemplates(response.data);
+        setTemplates(MOCK_TEMPLATES); // Using mock templates for now
       } catch (err) {
         console.error("Failed to load templates:", err);
-        setError("Failed to load policy templates. Please try again.");
-      } finally {
-        setIsLoading(false);
       }
-    }
+    };
 
     loadTemplates();
-  }, [credential]);
+  }, []);
 
   const getPolicyTypeIcon = (type: string) => {
     switch (type) {
-      case POLICY_TYPES.ALLOW_LIST:
-        return <Check className="h-5 w-5" />;
-      case POLICY_TYPES.DENY_LIST:
-        return <AlertTriangle className="h-5 w-5" />;
-      case POLICY_TYPES.TIME_BASED:
-        return <Clock className="h-5 w-5" />;
-      case POLICY_TYPES.RATE_LIMITING:
-        return <Hash className="h-5 w-5" />;
+      case 'aws':
+        return <Cloud className="h-5 w-5" />;
+      case 'database':
+        return <Database className="h-5 w-5" />;
+      case 'api':
+      case 'oauth':
+        return <Key className="h-5 w-5" />;
+      case 'global':
+        return <Globe className="h-5 w-5" />;
       default:
         return <Shield className="h-5 w-5" />;
     }
   };
 
-  const getPolicyTypeVariant = (type: string): "default" | "outline" | "secondary" | "destructive" => {
-    switch (type) {
-      case POLICY_TYPES.ALLOW_LIST:
-        return "default";
-      case POLICY_TYPES.DENY_LIST:
-        return "destructive";
-      case POLICY_TYPES.TIME_BASED:
-        return "secondary";
-      case POLICY_TYPES.RATE_LIMITING:
-        return "outline";
-      default:
-        return "default";
+  const handleSelectTemplate = (template: PolicyTemplate) => {
+    if (template) {
+      const policyConfig = { ...template.policyConfig };
+      
+      // If we have a preselected scope, override the template's scope
+      if (preselectedScope) {
+        policyConfig.scope = preselectedScope;
+      }
+      
+      // If we have a preselected credential ID and the scope is credential, use it
+      if (preselectedCredentialId && (policyConfig.scope === 'credential' || preselectedScope === 'credential')) {
+        policyConfig.credentialId = preselectedCredentialId;
+      }
+      
+      // If no credential is selected but we need one, use the first available
+      if (policyConfig.scope === 'credential' && !policyConfig.credentialId && availableCredentials?.length) {
+        policyConfig.credentialId = availableCredentials[0].id;
+      }
+      
+      onTemplateSelect(policyConfig);
     }
   };
-
-  const handleTemplateSelect = (templateId: string, pluginType: string) => {
-    // Find the selected template
-    const selectedTemplate = templates.find(t => t.id === templateId);
-
-    if (selectedTemplate) {
-      // In a real application, we would transform the template to a policy config
-      // For this demo, we'll create a basic policy structure
-      const policyConfig: Partial<Policy> = {
-        name: selectedTemplate.name,
-        type: selectedTemplate.type,
-        description: selectedTemplate.description,
-        scope: selectedTemplate.scope,
-        isActive: true,
-        // Add other fields from the template as needed
-      };
-
-      onSelectTemplate({ policyConfig });
-    }
-  };
-
-  if (isLoading) {
-    return <div className="text-center py-8">Loading templates...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md">
-        {error}
-      </div>
-    );
-  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {templates.map((template) => (
-        <Card key={template.id} className="overflow-hidden">
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center space-x-2">
-                <div className="p-1.5 bg-primary/10 rounded-full">
-                  {getPolicyTypeIcon(template.type)}
-                </div>
-                <h3 className="font-medium">{template.name}</h3>
-              </div>
-              <Badge variant={getPolicyTypeVariant(template.type)}>
-                {template.type}
-              </Badge>
+        <Card key={template.id} className="flex flex-col">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              {getPolicyTypeIcon(template.type)}
+              <CardTitle className="text-lg">{template.name}</CardTitle>
             </div>
-            
-            <p className="text-sm text-gray-500 mb-4">{template.description}</p>
-            
-            <div className="flex justify-end">
-              <Button 
-                variant="outline" 
-                className="text-xs"
-                onClick={() => handleTemplateSelect(template.id, template.category)}
-              >
-                <span>Use Template</span>
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
+            <CardDescription>{template.description}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex-grow">
+            <div className="flex flex-wrap gap-2 mt-2">
+              {template.tags.map((tag) => (
+                <Badge key={tag} variant="secondary">
+                  {tag}
+                </Badge>
+              ))}
             </div>
-          </div>
+          </CardContent>
+          <CardFooter>
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={() => handleSelectTemplate(template)}
+            >
+              Use Template
+            </Button>
+          </CardFooter>
         </Card>
       ))}
     </div>

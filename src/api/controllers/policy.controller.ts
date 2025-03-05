@@ -203,9 +203,12 @@ export const createPolicy = async (req: Request, res: Response) => {
           pluginId,
           applicationId
         },
-        credentialId,
         enabled: isEnabled !== undefined ? isEnabled : true,
         createdBy: req.user.id,
+        // Handle the credential relationship - for all policies, connect to the credential
+        credential: {
+          connect: { id: credentialId }
+        },
         auditEvents: {
           create: {
             type: 'POLICY_CREATED',

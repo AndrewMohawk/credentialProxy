@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PolicySimulator } from '@/components/policies/policy-simulator';
 import { Policy } from '@/lib/types/policy';
@@ -11,7 +11,8 @@ import { Card } from '@/components/ui/card';
 import { Alert } from '@/components/ui/alert';
 import Link from 'next/link';
 
-export default function PolicySimulatorPage() {
+// Component to handle the actual page content using searchParams
+function PolicySimulatorContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const policyId = searchParams.get('policyId');
@@ -81,5 +82,14 @@ export default function PolicySimulatorPage() {
         <PolicySimulator policy={policy} credentialId={policy.credentialId} />
       )}
     </div>
+  );
+}
+
+// Main page component with Suspense boundary
+export default function PolicySimulatorPage() {
+  return (
+    <Suspense fallback={<div className="container mx-auto py-6 flex justify-center">Loading...</div>}>
+      <PolicySimulatorContent />
+    </Suspense>
   );
 } 

@@ -1,5 +1,3 @@
-// Prisma schema for CredentialProxy
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,60 +7,149 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// User model for administrators
 model User {
   id              String                 @id @default(uuid())
   username        String                 @unique
   email           String                 @unique
   passwordHash    String?
-  // For passkey authentication
   challenge       String?
-  credentials     Credential[]
-  passkeys        Passkey[]
-  auditEvents     AuditEvent[]
-  preApprovedKeys PreApprovedPublicKey[]
   createdAt       DateTime               @default(now())
   updatedAt       DateTime               @updatedAt
+  auditEvents     AuditEvent[]
+  credentials     Credential[]
+  passkeys        Passkey[]
+  preApprovedKeys PreApprovedPublicKey[]
 }
 
-// Passkey authentication credentials
 model Passkey {
   id                 String   @id
   userId             String
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   publicKey          Bytes
   counter            BigInt
   credentialBackedUp Boolean  @default(false)
   transports         String[]
   createdAt          DateTime @default(now())
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// Credential types
-enum CredentialType {
-  COOKIE
-  API_KEY
-  OAUTH
-  ETHEREUM_KEY
-  OTHER
-}
-
-// Credential model
 model Credential {
   id           String         @id @default(uuid())
   name         String
   type         CredentialType
-  data         Json // Encrypted credential data
+  data         Json
   userId       String
-  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  policies     Policy[]
-  applications Application[]
-  auditEvents  AuditEvent[]
-  isEnabled    Boolean        @default(true)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
+  isEnabled    Boolean        @default(true)
+  auditEvents  AuditEvent[]
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  policies     Policy[]
+  applications Application[]  @relation("ApplicationToCredential")
 }
 
-// Policy types
+model Policy {
+  id           String        @id @default(uuid())
+  name         String
+  credentialId String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  description  String?
+  config       Json
+  createdBy    String?
+  enabled      Boolean       @default(true)
+  version      Int           @default(1)
+  type         String
+  auditEvents  AuditEvent[]
+  credential   Credential    @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  applications Application[] @relation("ApplicationToPolicy")
+
+  @@index([credentialId])
+  @@index([type])
+}
+
+model Application {
+  id             String            @id @default(uuid())
+  name           String
+  publicKey      String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  callbackUrl    String?
+  description    String?
+  lastAccessedAt DateTime?
+  registrationIp String?
+  revokedAt      DateTime?
+  revokedReason  String?
+  secret         String?
+  status         ApplicationStatus @default(PENDING)
+  auditEvents    AuditEvent[]
+  credentials    Credential[]      @relation("ApplicationToCredential")
+  policies       Policy[]          @relation("ApplicationToPolicy")
+}
+
+model PreApprovedPublicKey {
+  id                String    @id @default(uuid())
+  publicKey         String    @unique
+  description       String?
+  createdById       String
+  used              Boolean   @default(false)
+  usedByApplication String?
+  createdAt         DateTime  @default(now())
+  expiresAt         DateTime?
+  createdBy         User      @relation(fields: [createdById], references: [id])
+}
+
+model AuditEvent {
+  id            String         @id @default(uuid())
+  type          String
+  details       Json
+  userId        String?
+  credentialId  String?
+  applicationId String?
+  policyId      String?
+  requestId     String?
+  requestStatus RequestStatus?
+  requestData   Json?
+  responseData  Json?
+  createdAt     DateTime       @default(now())
+  application   Application?   @relation(fields: [applicationId], references: [id])
+  credential    Credential?    @relation(fields: [credentialId], references: [id])
+  policy        Policy?        @relation(fields: [policyId], references: [id])
+  user          User?          @relation(fields: [userId], references: [id])
+}
+
+model PendingRequest {
+  id            String        @id @default(uuid())
+  requestData   Json
+  policyId      String
+  applicationId String
+  credentialId  String
+  status        RequestStatus @default(PENDING)
+  expiresAt     DateTime
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Plugin {
+  id          String    @id
+  name        String
+  description String
+  type        String    @unique
+  version     String
+  enabled     Boolean   @default(true)
+  configData  Json?
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+enum CredentialType {
+  OAUTH
+  API_KEY
+  ETHEREUM_KEY
+  OTHER
+  COOKIE
+}
+
 enum PolicyType {
   ALLOW_LIST
   DENY_LIST
@@ -72,125 +159,16 @@ enum PolicyType {
   PATTERN_MATCH
 }
 
-// Policy model to store security policies for credentials
-model Policy {
-  id            String       @id @default(uuid())
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  name          String
-  description   String?
-  type          String       // Policy type (ALLOW_LIST, DENY_LIST, TIME_BASED, etc.)
-  config        Json         // JSON configuration for the policy
-  enabled       Boolean      @default(true)
-  version       Int          @default(1)
-  
-  // Relations
-  credentialId  String
-  credential    Credential   @relation(fields: [credentialId], references: [id], onDelete: Cascade)
-  createdBy     String?      // User ID who created this policy
-  
-  // Added missing relations
-  applications  Application[]
-  auditEvents   AuditEvent[]
-  
-  // Indexes
-  @@index([credentialId])
-  @@index([type])
-}
-
-// Application model for third-party apps
-model Application {
-  id             String            @id @default(uuid())
-  name           String
-  publicKey      String // For verifying request signatures
-  status         ApplicationStatus @default(PENDING)
-  credentials    Credential[]
-  policies       Policy[]
-  auditEvents    AuditEvent[]
-  secret         String? // Optional secret key, visible only during application creation
-  description    String?
-  callbackUrl    String? // URL to notify the application of events
-  registrationIp String? // IP from which the application was registered
-  lastAccessedAt DateTime? // When the application last made a request
-  revokedAt      DateTime? // When the application was revoked
-  revokedReason  String? // Reason for revocation
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-}
-
-// Pre-approved public keys for automatic application approval
-model PreApprovedPublicKey {
-  id                String    @id @default(uuid())
-  publicKey         String    @unique // The public key that will be auto-approved
-  description       String? // Description of what application this key is for
-  createdById       String // Admin who created this pre-approval
-  createdBy         User      @relation(fields: [createdById], references: [id])
-  used              Boolean   @default(false) // Whether this key has been used
-  usedByApplication String? // ID of the application that used this key
-  createdAt         DateTime  @default(now())
-  expiresAt         DateTime? // Optional expiration date for the pre-approval
-}
-
-// Status of an application
 enum ApplicationStatus {
-  ACTIVE // Application is active and can use credentials
-  PENDING // Application is pending approval
-  REVOKED // Application has been revoked
+  ACTIVE
+  PENDING
+  REVOKED
 }
 
-// Request status for audit logging
 enum RequestStatus {
   PENDING
   APPROVED
   DENIED
   COMPLETED
   ERROR
-}
-
-// Audit log for all actions
-model AuditEvent {
-  id            String         @id @default(uuid())
-  type          String // Type of event (e.g., "credential_access", "policy_update")
-  details       Json // Event-specific details
-  userId        String?
-  user          User?          @relation(fields: [userId], references: [id])
-  credentialId  String?
-  credential    Credential?    @relation(fields: [credentialId], references: [id])
-  applicationId String?
-  application   Application?   @relation(fields: [applicationId], references: [id])
-  policyId      String?
-  policy        Policy?        @relation(fields: [policyId], references: [id])
-  requestId     String? // For tracking request flow
-  requestStatus RequestStatus?
-  // For storing pending requests that need approval
-  requestData   Json?
-  responseData  Json?
-  createdAt     DateTime       @default(now())
-}
-
-// PendingRequest model for requests requiring approval
-model PendingRequest {
-  id            String        @id @default(uuid())
-  requestData   Json // The original request data
-  policyId      String
-  applicationId String
-  credentialId  String
-  status        RequestStatus @default(PENDING)
-  expiresAt     DateTime // When the request times out
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-}
-
-// Plugin model for managing credential plugins
-model Plugin {
-  id          String    @id
-  name        String
-  description String
-  type        String    @unique // Matches the plugin type in code (e.g., "COOKIE", "API_KEY")
-  version     String
-  enabled     Boolean   @default(true)
-  configData  Json? // Optional plugin-specific configuration
-  lastUsedAt  DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
 }

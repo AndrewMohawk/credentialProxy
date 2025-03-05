@@ -1,4 +1,5 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import { Verb, VerbFilter, VerbScope } from './types/verb';
 
 // Get backend configuration from environment variables or use defaults
 const BACKEND_PORT = process.env.NEXT_PUBLIC_BACKEND_PORT || '4242';
@@ -345,6 +346,147 @@ class ApiClient {
    */
   public getAxiosInstance(): AxiosInstance {
     return this.instance;
+  }
+
+  /**
+   * Get all verbs with optional filtering
+   * @param filters Optional filters for the verbs
+   * @returns Array of verbs matching the filters
+   */
+  async getVerbs(filters?: VerbFilter) {
+    let url = '/verb-registry';
+    
+    // Add query parameters if filters are provided
+    if (filters) {
+      const params = new URLSearchParams();
+      
+      if (filters.scope) {
+        params.append('scope', filters.scope);
+      }
+      
+      if (filters.pluginType) {
+        params.append('pluginType', filters.pluginType);
+      }
+      
+      if (filters.credentialType) {
+        params.append('credentialType', filters.credentialType);
+      }
+      
+      if (filters.search) {
+        params.append('search', filters.search);
+      }
+      
+      if (filters.tags && filters.tags.length > 0) {
+        params.append('tags', filters.tags.join(','));
+      }
+      
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+    }
+    
+    return this.get<Verb[]>(url);
+  }
+
+  /**
+   * Get a verb by ID
+   * @param verbId The ID of the verb to get
+   * @returns The verb, or null if not found
+   */
+  async getVerbById(verbId: string) {
+    return this.get<Verb>(`/verb-registry/${verbId}`);
+  }
+
+  /**
+   * Register a new verb
+   * @param verb The verb to register
+   * @returns The registered verb
+   */
+  async registerVerb(verb: Verb) {
+    return this.post<Verb>('/verb-registry', verb);
+  }
+
+  /**
+   * Unregister a verb
+   * @param verbId The ID of the verb to unregister
+   * @returns Success status
+   */
+  async unregisterVerb(verbId: string) {
+    return this.delete(`/verb-registry/${verbId}`);
+  }
+
+  /**
+   * Register verbs for a plugin
+   * @param pluginType The type of plugin
+   * @param verbs The verbs to register
+   * @returns The registered verbs
+   */
+  async registerPluginVerbs(pluginType: string, verbs: Omit<Verb, 'scope' | 'pluginType'>[]) {
+    return this.post<Verb[]>(`/verb-registry/plugin/${pluginType}`, verbs);
+  }
+
+  /**
+   * Register verbs for a credential type
+   * @param credentialType The type of credential
+   * @param verbs The verbs to register
+   * @returns The registered verbs
+   */
+  async registerCredentialVerbs(credentialType: string, verbs: Omit<Verb, 'scope' | 'credentialType'>[]) {
+    return this.post<Verb[]>(`/verb-registry/credential/${credentialType}`, verbs);
+  }
+
+  /**
+   * Get verbs for a specific scope
+   * @param scope The scope to get verbs for
+   * @returns Array of verbs for the specified scope
+   */
+  async getVerbsByScope(scope: VerbScope) {
+    return this.getVerbs({ scope });
+  }
+
+  /**
+   * Get verbs for a specific plugin type
+   * @param pluginType The plugin type to get verbs for
+   * @returns Array of verbs for the specified plugin type
+   */
+  async getVerbsByPluginType(pluginType: string) {
+    return this.getVerbs({ scope: VerbScope.PLUGIN, pluginType });
+  }
+
+  /**
+   * Get verbs for a specific credential type
+   * @param credentialType The credential type to get verbs for
+   * @returns Array of verbs for the specified credential type
+   */
+  async getVerbsByCredentialType(credentialType: string) {
+    return this.getVerbs({ scope: VerbScope.CREDENTIAL, credentialType });
+  }
+
+  /**
+   * Get verbs for a specific credential instance
+   * @param credentialId The ID of the credential to get verbs for
+   * @returns Array of verbs for the specified credential
+   */
+  async getVerbsForCredential(credentialId: string) {
+    return this.get<Verb[]>(`/verb-registry/credential/${credentialId}`);
+  }
+
+  /**
+   * Get verbs for a specific plugin instance
+   * @param pluginId The ID of the plugin to get verbs for
+   * @returns Array of verbs for the specified plugin
+   */
+  async getVerbsForPlugin(pluginId: string) {
+    return this.get<Verb[]>(`/verb-registry/plugin/${pluginId}`);
+  }
+
+  /**
+   * Search for verbs by name or description
+   * @param searchTerm The search term
+   * @returns Array of verbs matching the search term
+   */
+  async searchVerbs(searchTerm: string) {
+    return this.getVerbs({ search: searchTerm });
   }
 }
 

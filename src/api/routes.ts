@@ -10,6 +10,7 @@ import { auditRoutes } from './routes/audit.routes';
 import { preApprovedKeysRoutes } from './routes/pre-approved-keys.routes';
 import { dashboardRoutes } from './routes/dashboard.routes';
 import pluginRoutes from './routes/plugin.routes';
+import { verbRegistryRoutes } from './routes/verb-registry.routes';
 import { createPolicyBlueprintRoutes } from './routes/policyBlueprintRoutes';
 import { createPolicyManagementRoutes } from './routes/policyManagementRoutes';
 import { logger } from '../utils/logger';
@@ -45,6 +46,7 @@ export const configureRoutes = (app: Express, pluginManager: PluginManager): voi
   app.use(`${apiPrefix}/pre-approved-keys`, preApprovedKeysRoutes);
   app.use(`${apiPrefix}/dashboard`, dashboardRoutes);
   app.use(`${apiPrefix}/plugins`, pluginRoutes);
+  app.use(`${apiPrefix}/verb-registry`, verbRegistryRoutes);
   app.use(`${apiPrefix}/policy-blueprints`, createPolicyBlueprintRoutes(pluginManager));
   app.use(`${apiPrefix}`, createPolicyManagementRoutes(pluginManager));
   

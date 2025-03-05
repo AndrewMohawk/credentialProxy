@@ -15,6 +15,7 @@ import { CredentialManager } from './credential/CredentialManager';
 import { PolicyMiddleware } from '../middleware/policyMiddleware';
 import { getPluginManager, PluginManager } from '../plugins/PluginManager';
 import { PolicyTemplateService } from './policies/policyTemplateService';
+import { initVerbRegistry } from '../services/verbRegistryService';
 
 /**
  * The main class for the Credential Proxy service.
@@ -64,6 +65,10 @@ export class CredentialProxy {
       
       // Initialize proxy queue processor
       initProxyQueueProcessor();
+      
+      // Initialize verb registry
+      await initVerbRegistry();
+      logger.info('Verb registry initialized');
       
       // Setup Swagger documentation
       setupSwagger(app);

@@ -2,26 +2,40 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, AlertCircle, PlayCircle, Info } from 'lucide-react';
+import { PlusCircle, AlertCircle, PlayCircle, Info, Plus, Wand2, FilePlus, MessageSquare, Code2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Policy } from '@/lib/types/policy';
 import { usePolicies } from '@/hooks/policies/use-policies';
 import { usePlugins } from '@/hooks/plugins/use-plugins';
 import { useCredentials } from '@/hooks/credentials/use-credentials';
-import { PoliciesTable } from '@/components/policies/policies-table';
-import { PolicyViewDialog } from '@/components/policies/policy-view-dialog';
-import { PolicyEditDialog } from '@/components/policies/policy-edit-dialog';
-import { PolicyDeleteAlert } from '@/components/policies/policy-delete-alert';
-import { PolicyCreateDialog } from '@/components/policies/policy-create-dialog';
-import { PolicyWizardDialog } from '@/components/policies/policy-wizard-dialog';
-import { MOCK_TEMPLATES } from '@/lib/types/policy';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { PolicyFlowVisualization } from '@/components/policies/policy-flow-visualization';
-import { DashboardShell } from '@/components/dashboard-shell';
+import { Credential } from '@/hooks/credentials/use-credentials';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { DashboardHeader } from '@/components/dashboard-header';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { MOCK_TEMPLATES } from '@/lib/types/policy';
+import { PoliciesTable } from '@/components/policies/policies-table';
+import { PolicyCreateDialog } from '@/components/policies/policy-create-dialog';
+import { PolicyEditDialog } from '@/components/policies/policy-edit-dialog';
+import { PolicyViewDialog } from '@/components/policies/policy-view-dialog';
+import { PolicyWizardDialog } from '@/components/policies/policy-wizard-dialog';
+import { PolicyFlowVisualization } from '@/components/policies/policy-flow-visualization';
+import { NaturalLanguagePolicyDialog } from '@/components/policies/natural-language-policy-dialog';
+import { PolicyDeleteAlert } from '@/components/policies/policy-delete-alert';
+import { PolicyCreationModal } from '@/components/policies/policy-creation-modal';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuTrigger, 
+  DropdownMenuSeparator, 
+  DropdownMenuShortcut 
+} from '@/components/ui/dropdown-menu';
+import { CircleIcon } from '@/components/icons/circle-icon';
 
 // Policy with strong typing
 interface PolicyWithDetails extends Policy {
@@ -45,6 +59,10 @@ export function PoliciesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [wizardDialogOpen, setWizardDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [naturalLanguageDialogOpen, setNaturalLanguageDialogOpen] = useState(false);
+  const [policyCreationModalOpen, setPolicyCreationModalOpen] = useState(false);
+  const [open, setOpen] = useState(false);
   
   // State for policy data
   const [selectedPolicy, setSelectedPolicy] = useState<Policy | null>(null);
@@ -52,7 +70,8 @@ export function PoliciesPage() {
   const [usageHistory, setUsageHistory] = useState<UsageHistoryEntry[]>([]);
   const [selectedPolicyName, setSelectedPolicyName] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
-  const [createPolicyScope, setCreatePolicyScope] = useState<'GLOBAL' | 'PLUGIN' | 'CREDENTIAL' | null>(null);
+  const [preselectedScope, setPreselectedScope] = useState<'GLOBAL' | 'PLUGIN' | 'CREDENTIAL' | null>(null);
+  const [targetId, setTargetId] = useState<string | undefined>(undefined);
   
   // Use our custom hooks
   const { 
@@ -73,10 +92,18 @@ export function PoliciesPage() {
   } = usePlugins();
   
   const {
-    credentials,
+    credentials: apiCredentials,
     isLoading: isCredentialsLoading,
     error: credentialsError
   } = useCredentials();
+  
+  // Use credentials from the API
+  const [credentials, setCredentials] = useState<Credential[]>([]);
+  
+  useEffect(() => {
+    // Just use the API credentials directly
+    setCredentials(Array.isArray(apiCredentials) ? apiCredentials : []);
+  }, [apiCredentials]);
   
   const isLoading = isPoliciesLoading || isPluginsLoading || isCredentialsLoading;
   const error = policiesError || pluginsError || credentialsError;
@@ -174,90 +201,115 @@ export function PoliciesPage() {
     }
   };
   
-  // Handle opening the create wizard dialog with specific scope
-  const handleOpenWizardDialog = (scope: 'GLOBAL' | 'PLUGIN' | 'CREDENTIAL' | null = null, targetId?: string) => {
-    setCreatePolicyScope(scope);
-    
-    // Create an initial policy with the selected scope and target ID
-    const initialPolicy: Partial<Policy> = {
-      scope: scope || 'GLOBAL',
-      isActive: true
-    };
-    
-    // Set the credential or plugin ID if provided
-    if (scope === 'CREDENTIAL' && targetId) {
-      initialPolicy.credentialId = targetId;
-    } else if (scope === 'PLUGIN' && targetId) {
-      initialPolicy.pluginId = targetId;
+  // Handle opening the create dialog with specific scope
+  const handleOpenCreateDialog = (scope: 'GLOBAL' | 'PLUGIN' | 'CREDENTIAL' | null = null, targetId?: string) => {
+    setPreselectedScope(scope);
+    if (targetId) {
+      setTargetId(targetId);
     }
-    
-    setSelectedPolicy(initialPolicy as Policy);
-    setWizardDialogOpen(true);
+    // Open natural language dialog directly instead of the policy creation modal
+    setNaturalLanguageDialogOpen(true);
   };
   
-  // For backward compatibility - keep the original dialog handler
-  const handleOpenCreateDialog = (scope: 'GLOBAL' | 'PLUGIN' | 'CREDENTIAL' | null = null) => {
-    setCreatePolicyScope(scope);
+  // Handle selecting natural language policy creation
+  const handleSelectNaturalLanguage = () => {
+    setPolicyCreationModalOpen(false);
+    setNaturalLanguageDialogOpen(true);
+  };
+  
+  // Handle selecting advanced policy creation
+  const handleSelectAdvanced = () => {
+    setPolicyCreationModalOpen(false);
     setCreateDialogOpen(true);
+  };
+  
+  // Handle opening the natural language dialog
+  const handleOpenNaturalLanguageDialog = (scope?: 'GLOBAL' | 'PLUGIN' | 'CREDENTIAL', targetId?: string) => {
+    setPreselectedScope(scope || null);
+    setTargetId(targetId);
+    setNaturalLanguageDialogOpen(true);
   };
   
   // Save new policy
   const handleCreatePolicy = async (policyData: any) => {
     try {
-      // Inject scope if it was pre-selected and not already set
-      if (createPolicyScope && !policyData.scope) {
-        policyData.scope = createPolicyScope;
-      }
+      // Set isActive based on isEnabled or default to true
+      const isActive = policyData.isEnabled !== undefined ? policyData.isEnabled : true;
       
-      // Format the data for the API
-      const formattedData = {
-        ...policyData,
-        // If isEnabled is defined but isActive is not, use isEnabled value
-        isActive: policyData.isActive !== undefined ? policyData.isActive : policyData.isEnabled,
-        // Set a default priority if not provided
+      // Prepare the data for API
+      const apiData: any = {
+        name: policyData.name,
+        description: policyData.description || '',
+        isActive,
         priority: policyData.priority || 100,
+        config: policyData.config || {}
       };
       
-      // Ensure config exists
-      if (!formattedData.config && policyData.configuration) {
-        formattedData.config = { ...policyData.configuration };
+      // Handle the new policy data structure from NaturalLanguagePolicyDialog
+      if (policyData.scope && policyData.rules) {
+        // Determine the type based on the action in the first rule
+        const firstRule = policyData.rules[0];
+        if (firstRule) {
+          apiData.type = firstRule.action === 'allow' ? 'ALLOW_LIST' : 'DENY_LIST';
+        }
+        
+        // Set the config with scope and rules
+        apiData.config = {
+          ...apiData.config,
+          scope: policyData.scope.toUpperCase(),
+          rules: policyData.rules
+        };
+        
+        // Set credential or plugin ID based on scope
+        if (policyData.scope === 'credential' && policyData.credentialId) {
+          apiData.credentialId = policyData.credentialId;
+        } else if (policyData.scope === 'plugin' && policyData.pluginId) {
+          apiData.pluginId = policyData.pluginId;
+        }
+      } 
+      // Handle the old policy dialog structure
+      else {
+        // Ensure config exists
+        if (!apiData.config) {
+          apiData.config = policyData.configuration || {};
+        }
+        
+        // Handle pattern match policies
+        if (policyData.type === 'PATTERN_MATCH' && policyData.pattern) {
+          apiData.config.pattern = policyData.pattern;
+        }
+        
+        // Set type from policyData
+        apiData.type = policyData.type;
+        
+        // Set credential or plugin ID
+        if (policyData.credentialId) {
+          apiData.credentialId = policyData.credentialId;
+        } else if (policyData.pluginId) {
+          apiData.pluginId = policyData.pluginId;
+        }
       }
       
-      // Add type-specific data if coming from the form
-      if (policyData.type === 'PATTERN_MATCH' && policyData.pattern) {
-        formattedData.config = formattedData.config || {};
-        formattedData.config.pattern = policyData.pattern;
-      }
+      // Create the policy
+      await createPolicy(apiData);
       
-      if (policyData.type === 'COUNT_BASED' && policyData.maxCount) {
-        formattedData.config = formattedData.config || {};
-        formattedData.config.maxCount = parseInt(policyData.maxCount);
-      }
-      
-      if (policyData.type === 'TIME_BASED') {
-        formattedData.config = formattedData.config || {};
-        if (policyData.startTime) formattedData.config.startTime = policyData.startTime;
-        if (policyData.endTime) formattedData.config.endTime = policyData.endTime;
-      }
-      
-      // Log the formatted data for debugging
-      console.log('Creating policy with data:', formattedData);
-      
-      await createPolicy(formattedData);
-      
-      // Close both dialogs to be safe
+      // Close dialogs and refresh
       setCreateDialogOpen(false);
-      setWizardDialogOpen(false);
+      setWizardOpen(false);
+      setNaturalLanguageDialogOpen(false);
+      setPolicyCreationModalOpen(false);
       
+      // Show success message
       toast({
-        title: 'Success',
-        description: `Policy "${policyData.name}" has been created`,
+        title: "Policy Created",
+        description: "Your policy has been created successfully.",
       });
-    } catch (err) {
+    } catch (error) {
+      console.error('Error creating policy:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to create policy',
-        variant: 'destructive'
+        title: "Error Creating Policy",
+        description: "There was an error creating your policy. Please try again.",
+        variant: "destructive",
       });
     }
   };
@@ -386,9 +438,9 @@ export function PoliciesPage() {
             </Tooltip>
           </TooltipProvider>
           
-          <Button onClick={() => handleOpenWizardDialog()}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Create New Policy
+          <Button onClick={() => handleOpenCreateDialog()}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Policy
           </Button>
         </div>
       </DashboardHeader>
@@ -409,10 +461,11 @@ export function PoliciesPage() {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  onClick={() => handleOpenWizardDialog('GLOBAL')}
+                  className="w-full"
+                  onClick={() => handleOpenCreateDialog('GLOBAL')}
                 >
-                  <PlusCircle className="mr-1 h-4 w-4" />
-                  Add Policy
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Global Policy
                 </Button>
               </div>
             </CardHeader>
@@ -439,41 +492,32 @@ export function PoliciesPage() {
                     Policies that apply to specific plugins
                   </CardDescription>
                 </div>
-                <div className="flex space-x-2">
-                  {plugins && plugins.length > 0 ? (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                        >
-                          <PlusCircle className="mr-1 h-4 w-4" />
-                          Add Policy
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuLabel>Select Plugin</DropdownMenuLabel>
-                        {plugins.map(plugin => (
-                          <DropdownMenuItem 
-                            key={plugin.id}
-                            onClick={() => handleOpenWizardDialog('PLUGIN', plugin.id)}
-                          >
-                            {plugin.name}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  ) : (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => handleOpenWizardDialog('PLUGIN')}
-                    >
-                      <PlusCircle className="mr-1 h-4 w-4" />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Plus className="mr-2 h-4 w-4" />
                       Add Policy
                     </Button>
-                  )}
-                </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {plugins && Array.isArray(plugins) && plugins.length > 0 ? (
+                      plugins.map((plugin) => (
+                        <DropdownMenuItem 
+                          key={plugin.id}
+                          onClick={() => handleOpenCreateDialog('PLUGIN', plugin.id)}
+                          className="flex flex-col items-center justify-center p-4 border rounded-md hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                        >
+                          <CircleIcon className="mr-2 h-2 w-2" />
+                          {plugin.name || plugin.type}
+                        </DropdownMenuItem>
+                      ))
+                    ) : (
+                      <DropdownMenuItem disabled>
+                        No plugins available
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </CardHeader>
             <CardContent className="pt-0">
@@ -501,41 +545,30 @@ export function PoliciesPage() {
                     Policies that apply to specific credentials
                   </CardDescription>
                 </div>
-                <div className="flex space-x-2">
-                  {credentials && credentials.length > 0 ? (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                        >
-                          <PlusCircle className="mr-1 h-4 w-4" />
-                          Add Policy
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuLabel>Select Credential</DropdownMenuLabel>
-                        {credentials.map(credential => (
-                          <DropdownMenuItem 
-                            key={credential.id}
-                            onClick={() => handleOpenWizardDialog('CREDENTIAL', credential.id)}
-                          >
-                            {credential.name}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  ) : (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => handleOpenWizardDialog('CREDENTIAL')}
-                    >
-                      <PlusCircle className="mr-1 h-4 w-4" />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Plus className="mr-2 h-4 w-4" />
                       Add Policy
                     </Button>
-                  )}
-                </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {credentials && Array.isArray(credentials) && credentials.length > 0 ? (
+                      credentials.map((credential) => (
+                        <DropdownMenuItem 
+                          key={credential.id}
+                          onClick={() => handleOpenCreateDialog('CREDENTIAL', credential.id)}
+                          className="flex flex-col items-center justify-center p-4 border rounded-md hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                        >
+                          <CircleIcon className="mr-2 h-2 w-2" />
+                          {credential.name}
+                        </DropdownMenuItem>
+                      ))
+                    ) : (
+                      <DropdownMenuItem disabled>No credentials available</DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </CardHeader>
             <CardContent className="pt-0">
@@ -604,24 +637,40 @@ export function PoliciesPage() {
       </div>
       
       {/* Dialogs */}
-      <PolicyWizardDialog
-        open={wizardDialogOpen}
-        onOpenChange={setWizardDialogOpen}
-        onComplete={handleCreatePolicy}
-        preselectedScope={createPolicyScope}
-        initialPolicy={selectedPolicy as Partial<Policy>}
-        credentialId={createPolicyScope === 'CREDENTIAL' ? selectedPolicy?.credentialId : undefined}
-      />
-      
-      <PolicyCreateDialog 
+      <PolicyCreateDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
         onSave={handleCreatePolicy}
-        isCreating={false}
         plugins={plugins}
         credentials={credentials}
         templates={MOCK_TEMPLATES}
-        preselectedScope={createPolicyScope}
+        preselectedScope={preselectedScope}
+        isCreating={false}
+      />
+      
+      <PolicyWizardDialog
+        open={wizardOpen}
+        onOpenChange={setWizardOpen}
+        onComplete={handleCreatePolicy}
+        preselectedScope={preselectedScope}
+        credentialId={preselectedScope === 'CREDENTIAL' ? targetId : undefined}
+      />
+      
+      <NaturalLanguagePolicyDialog
+        open={naturalLanguageDialogOpen}
+        onOpenChange={setNaturalLanguageDialogOpen}
+        onComplete={handleCreatePolicy}
+        availableCredentials={credentials || []}
+        availablePlugins={plugins || []}
+        initialCredentialId={preselectedScope === 'CREDENTIAL' ? targetId : undefined}
+        initialScope={preselectedScope === 'CREDENTIAL' ? 'credential' : preselectedScope === 'PLUGIN' ? 'plugin' : 'global'}
+      />
+      
+      <PolicyCreationModal
+        open={policyCreationModalOpen}
+        onOpenChange={setPolicyCreationModalOpen}
+        onSelectNaturalLanguage={handleSelectNaturalLanguage}
+        onSelectAdvanced={handleSelectAdvanced}
       />
       
       <PolicyViewDialog 
