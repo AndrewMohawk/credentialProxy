@@ -52,6 +52,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_user');
     
+    // Remove from sessionStorage
+    sessionStorage.removeItem('auth_token');
+    sessionStorage.removeItem('auth_user');
+    
     // Clear API client token
     apiClient.clearToken();
     
@@ -117,6 +121,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('auth_token', authToken);
         localStorage.setItem('auth_user', JSON.stringify(userData));
         
+        // Also store in sessionStorage for OAuth flows
+        sessionStorage.setItem('auth_token', authToken);
+        sessionStorage.setItem('auth_user', JSON.stringify(userData));
+        
         // Set token in API client
         apiClient.setToken(authToken);
         
@@ -178,6 +186,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Update localStorage and auth state
         localStorage.setItem('auth_token', authToken);
         localStorage.setItem('auth_user', JSON.stringify(userData));
+        
+        // Also store in sessionStorage for OAuth flows
+        sessionStorage.setItem('auth_token', authToken);
+        sessionStorage.setItem('auth_user', JSON.stringify(userData));
         
         // Set token in API client
         apiClient.setToken(authToken);

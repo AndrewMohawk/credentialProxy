@@ -364,6 +364,66 @@ class ApiClient {
   }
 
   /**
+   * Perform a PATCH request
+   */
+  public async patch<T = any>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig
+  ): Promise<ApiResponse<T>> {
+    try {
+      const response: AxiosResponse = await this.instance.patch(url, data, config);
+      
+      // Add debug logging in development
+      if (process.env.NODE_ENV !== 'production') {
+        console.debug(`API PATCH ${url} response:`, response.data);
+      }
+      
+      // Handle different response formats
+      if (response.data && typeof response.data === 'object') {
+        // If the response already has our expected structure
+        if ('success' in response.data) {
+          // If the response has success property but data is missing,
+          // collect all non-metadata properties into a data object
+          if (response.data.success === true && !response.data.data) {
+            const { success, message, error, ...rest } = response.data;
+            const hasData = Object.keys(rest).length > 0;
+            
+            return {
+              success: true,
+              message,
+              data: hasData ? rest as unknown as T : undefined,
+              error
+            };
+          }
+          
+          // Otherwise return the response as is
+          return response.data as ApiResponse<T>;
+        }
+        
+        // Otherwise, wrap it in our standard format
+        return {
+          success: true,
+          data: response.data as T
+        };
+      }
+      
+      // For primitive responses (like strings)
+      return {
+        success: true,
+        data: response.data as T
+      };
+    } catch (error: any) {
+      // Log the error details in development
+      if (process.env.NODE_ENV !== 'production') {
+        console.error(`API PATCH ${url} error:`, error.response?.data || error.message);
+      }
+      
+      throw new Error(extractErrorMessage(error));
+    }
+  }
+
+  /**
    * Get the Axios instance for custom usage if needed
    */
   public getAxiosInstance(): AxiosInstance {

@@ -148,6 +148,7 @@ enum CredentialType {
   ETHEREUM_KEY
   OTHER
   COOKIE
+  TWITTER_OAUTH
 }
 
 enum PolicyType {

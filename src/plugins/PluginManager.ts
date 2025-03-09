@@ -17,6 +17,7 @@ import { BaseCredentialPlugin, RequestModification } from './BaseCredentialPlugi
 import { CookiePlugin } from './credentials/CookiePlugin';
 import { ApiKeyPlugin } from './credentials/ApiKeyPlugin';
 import { OAuthPlugin } from './credentials/OAuthPlugin';
+import TwitterOAuthPlugin from './credentials/twitter-oauth';
 import { prisma } from '../db/prisma';
 
 /**
@@ -46,6 +47,7 @@ export class PluginManager {
       await this.registerPlugin(new CookiePlugin());
       await this.registerPlugin(new ApiKeyPlugin());
       await this.registerPlugin(new OAuthPlugin());
+      await this.registerPlugin(new TwitterOAuthPlugin());
       
       logger.info('Default plugins registered successfully');
     } catch (error) {

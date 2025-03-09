@@ -190,40 +190,59 @@ router.post('/', async (req, res) => {
     // Encrypt the credential data
     const encryptedData = encryptCredential(data);
 
-    // Create the credential
-    const credential = await prisma.credential.create({
-      data: {
-        name,
-        type,
-        data: encryptedData,
-        userId
-      }
-    });
+    // Convert type string to Prisma enum if needed
+    // This ensures compatibility between plugin types and Prisma schema types
+    let credentialType;
+    try {
+      // For Prisma, we need to make sure the type is one of the enum values
+      // This handles both standard types and custom plugin types
+      credentialType = type as any;
+      
+      // Create the credential
+      const credential = await prisma.credential.create({
+        data: {
+          name,
+          type: credentialType,
+          data: encryptedData,
+          userId
+        }
+      });
 
-    // Log the creation
-    await prisma.auditEvent.create({
-      data: {
-        type: 'CREDENTIAL_CREATED',
-        details: {
-          credentialId: credential.id,
-          credentialName: name,
-          credentialType: type
-        },
-        userId,
-        credentialId: credential.id
-      }
-    });
+      // Log the creation
+      await prisma.auditEvent.create({
+        data: {
+          type: 'CREDENTIAL_CREATED',
+          details: {
+            credentialId: credential.id,
+            credentialName: name,
+            credentialType: type
+          },
+          userId,
+          credentialId: credential.id
+        }
+      });
 
-    // Return masked credential
-    const maskedCredential = {
-      ...credential,
-      data: { type: credential.type, masked: true }
-    };
-    
-    res.status(201).json({
-      success: true,
-      data: maskedCredential
-    });
+      // Return masked credential
+      const maskedCredential = {
+        ...credential,
+        data: { type: credential.type, masked: true }
+      };
+      
+      res.status(201).json({
+        success: true,
+        data: maskedCredential
+      });
+    } catch (error: any) {
+      logger.error(`Database error creating credential: ${error.message}`);
+      // Check for specific Prisma errors
+      if (error.message.includes('Invalid value for argument `type`')) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid credential type: ${type}. This may need to be added to the CredentialType enum in the Prisma schema.`
+        });
+      }
+      throw error; // Let the outer catch handle other errors
+    }
   } catch (error: any) {
     logger.error(`Error creating credential: ${error.message}`);
     res.status(500).json({
