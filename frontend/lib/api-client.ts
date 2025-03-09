@@ -70,6 +70,23 @@ class ApiClient {
     this.instance.interceptors.response.use(
       (response) => response,
       (error: AxiosError) => {
+        // Check if error is due to an expired token (401 Unauthorized)
+        if (error.response?.status === 401) {
+          // Clear the token
+          this.clearToken();
+          
+          // Remove token from localStorage
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('auth_token');
+            
+            // Redirect to login page if we're in a browser environment
+            // and not already on the login page
+            if (!window.location.pathname.includes('/login')) {
+              window.location.href = '/login';
+            }
+          }
+        }
+        
         return Promise.reject(error);
       }
     );
@@ -101,6 +118,11 @@ class ApiClient {
   public clearToken(): void {
     this.token = null;
     delete this.instance.defaults.headers.common.Authorization;
+    
+    // Also remove from localStorage if in browser environment
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_token');
+    }
   }
 
   /**

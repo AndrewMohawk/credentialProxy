@@ -50,8 +50,8 @@ export abstract class BaseCredentialPlugin {
   abstract readonly config: CredentialPluginConfig;
   abstract readonly metadata: PluginMetadata;
   
-  // Allow for potential supportedOperations property in subclasses
-  protected supportedOperations?: OperationMetadata[];
+  // Make supportedOperations public so it can be accessed by verb discovery
+  public supportedOperations?: OperationMetadata[];
 
   /**
    * Validate credential data before saving

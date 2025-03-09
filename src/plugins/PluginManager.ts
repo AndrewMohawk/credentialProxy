@@ -98,10 +98,48 @@ export class PluginManager {
     }
   }
 
+  /**
+   * Get a plugin by type
+   * @param type The plugin type
+   * @returns The plugin instance or undefined if not found
+   */
   public getPlugin(type: string): BaseCredentialPlugin | undefined {
-    return this.plugins.get(type.toUpperCase());
+    return this.plugins.get(type);
   }
 
+  /**
+   * Get a credential plugin by credential type
+   * @param credentialType The credential type
+   * @returns The plugin instance or undefined if not found
+   */
+  public getCredentialPlugin(credentialType: string): BaseCredentialPlugin | undefined {
+    // First try direct match
+    if (this.plugins.has(credentialType)) {
+      return this.plugins.get(credentialType);
+    }
+    
+    // Try case-insensitive match
+    const lowerCredentialType = credentialType.toLowerCase();
+    for (const [pluginType, plugin] of this.plugins.entries()) {
+      if (pluginType.toLowerCase() === lowerCredentialType) {
+        return plugin;
+      }
+    }
+    
+    // Try to find a plugin that handles this credential type
+    for (const plugin of this.plugins.values()) {
+      if (plugin.supportsCredentialType && plugin.supportsCredentialType(credentialType)) {
+        return plugin;
+      }
+    }
+    
+    return undefined;
+  }
+
+  /**
+   * Get all registered plugins
+   * @returns Array of all plugin instances
+   */
   public getAllPlugins(): BaseCredentialPlugin[] {
     return Array.from(this.plugins.values());
   }

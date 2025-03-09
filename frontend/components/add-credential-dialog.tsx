@@ -48,10 +48,29 @@ const baseCredentialFormSchema = z.object({
 const credentialTypeFields: Record<string, Array<{ name: string; label: string; type: string; description?: string; options?: string[] }>> = {
   API_KEY: [
     {
-      name: 'apiKey',
+      name: 'method',
+      label: 'Authentication Method',
+      type: 'select',
+      options: ['bearer', 'header', 'query', 'body'],
+      description: 'How the API key should be sent'
+    },
+    {
+      name: 'key',
       label: 'API Key',
       type: 'password',
-      description: 'Enter your API key'
+      description: 'The API key value'
+    },
+    {
+      name: 'headerName',
+      label: 'Header Name',
+      type: 'text',
+      description: 'Custom header name (if using header method)'
+    },
+    {
+      name: 'paramName',
+      label: 'Parameter Name',
+      type: 'text',
+      description: 'Query or body parameter name (if using query/body method)'
     }
   ],
   OAUTH: [
@@ -102,6 +121,130 @@ const credentialTypeFields: Record<string, Array<{ name: string; label: string; 
       label: 'Cookies',
       type: 'textarea',
       description: 'JSON formatted cookies object or cookie string'
+    }
+  ],
+  TWITTER_OAUTH: [
+    {
+      name: 'apiKey',
+      label: 'API Key',
+      type: 'password',
+      description: 'Twitter API key'
+    },
+    {
+      name: 'apiSecret',
+      label: 'API Secret',
+      type: 'password',
+      description: 'Twitter API secret'
+    },
+    {
+      name: 'accessToken',
+      label: 'Access Token',
+      type: 'password',
+      description: 'Twitter access token'
+    },
+    {
+      name: 'accessTokenSecret',
+      label: 'Access Token Secret',
+      type: 'password',
+      description: 'Twitter access token secret'
+    },
+    {
+      name: 'bearerToken',
+      label: 'Bearer Token (Optional)',
+      type: 'password',
+      description: 'Twitter bearer token for app-only authentication'
+    }
+  ],
+  TWITTER_COOKIE: [
+    {
+      name: 'cookies',
+      label: 'Twitter Cookies',
+      type: 'textarea',
+      description: 'Twitter cookies in JSON format or cookie string'
+    },
+    {
+      name: 'csrfToken',
+      label: 'CSRF Token',
+      type: 'password',
+      description: 'Twitter CSRF token (ct0)'
+    },
+    {
+      name: 'authToken',
+      label: 'Auth Token',
+      type: 'password',
+      description: 'Twitter auth token (auth_token)'
+    }
+  ],
+  NPM: [
+    {
+      name: 'token',
+      label: 'NPM Token',
+      type: 'password',
+      description: 'NPM authentication token'
+    },
+    {
+      name: 'scope',
+      label: 'Scope (Optional)',
+      type: 'text',
+      description: 'NPM scope (e.g. @myorg)'
+    },
+    {
+      name: 'registry',
+      label: 'Registry URL (Optional)',
+      type: 'text',
+      description: 'NPM registry URL (defaults to https://registry.npmjs.org)'
+    }
+  ],
+  BLUESKY: [
+    {
+      name: 'identifier',
+      label: 'Identifier',
+      type: 'text',
+      description: 'Bluesky handle or email'
+    },
+    {
+      name: 'password',
+      label: 'Password',
+      type: 'password',
+      description: 'Bluesky account password'
+    },
+    {
+      name: 'server',
+      label: 'Server (Optional)',
+      type: 'text',
+      description: 'Bluesky server URL (defaults to https://bsky.social)'
+    },
+    {
+      name: 'accessJwt',
+      label: 'Access JWT (Optional)',
+      type: 'password',
+      description: 'Bluesky access JWT (will be auto-generated if not provided)'
+    },
+    {
+      name: 'refreshJwt',
+      label: 'Refresh JWT (Optional)',
+      type: 'password',
+      description: 'Bluesky refresh JWT (will be auto-generated if not provided)'
+    }
+  ],
+  WARPCAST: [
+    {
+      name: 'apiKey',
+      label: 'API Key',
+      type: 'password',
+      description: 'Warpcast API key'
+    },
+    {
+      name: 'apiSecret',
+      label: 'API Secret',
+      type: 'password',
+      description: 'Warpcast API secret'
+    },
+    {
+      name: 'fid',
+      label: 'FID (Optional)',
+      type: 'text',
+      description: 'Farcaster ID (will be auto-retrieved if not provided)'
     }
   ],
   OTHER: [
@@ -204,6 +347,11 @@ export function AddCredentialDialog({ onCredentialAdded }: AddCredentialDialogPr
         { id: 'OAUTH', name: 'OAuth', description: 'OAuth Credential' },
         { id: 'COOKIE', name: 'Cookie', description: 'Cookie Credential' },
         { id: 'ETHEREUM_KEY', name: 'Ethereum Key', description: 'Ethereum Key Credential' },
+        { id: 'TWITTER_OAUTH', name: 'Twitter OAuth', description: 'Twitter OAuth Credential' },
+        { id: 'TWITTER_COOKIE', name: 'Twitter Cookie', description: 'Twitter Cookie Credential' },
+        { id: 'NPM', name: 'NPM Token', description: 'NPM Token Credential' },
+        { id: 'BLUESKY', name: 'Bluesky', description: 'Bluesky Credential' },
+        { id: 'WARPCAST', name: 'Warpcast', description: 'Warpcast Credential' },
         { id: 'OTHER', name: 'Other', description: 'Other Credential' }
       ]);
     } finally {

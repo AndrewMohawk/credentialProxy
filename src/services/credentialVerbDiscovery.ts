@@ -9,6 +9,7 @@
 import { logger } from '../utils/logger';
 import verbRegistryService, { Verb, VerbScope } from './verbRegistryService';
 import { prisma } from '../db/prisma';
+import { getPluginManager } from '../plugins/PluginManager';
 
 /**
  * Get common credential type verbs
@@ -144,8 +145,137 @@ export const getCommonVerbsForCredentialType = (credentialType: string): Omit<Ve
         }
       ];
     
+    case 'ethereum':
+    case 'eth':
+      return [
+        ...commonVerbs,
+        {
+          id: 'sign_message',
+          name: 'sign message',
+          description: 'Sign a message with the Ethereum private key',
+          operation: 'sign_message',
+          parameters: [
+            {
+              name: 'message',
+              description: 'Message to sign',
+              type: 'string',
+              required: true
+            }
+          ],
+          tags: ['ethereum', 'crypto'],
+          examples: ['If any application wants to sign message with Ethereum credential then allow']
+        },
+        {
+          id: 'send_transaction',
+          name: 'send transaction',
+          description: 'Send an Ethereum transaction',
+          operation: 'send_transaction',
+          parameters: [
+            {
+              name: 'to',
+              description: 'Recipient address',
+              type: 'string',
+              required: true
+            },
+            {
+              name: 'value',
+              description: 'Amount to send in wei',
+              type: 'string',
+              required: true
+            }
+          ],
+          tags: ['ethereum', 'crypto', 'transaction'],
+          examples: ['If any application wants to send transaction with Ethereum credential then allow']
+        }
+      ];
+    
+    case 'oauth':
+    case 'oauth2':
+      return [
+        ...commonVerbs,
+        {
+          id: 'refresh_token',
+          name: 'refresh token',
+          description: 'Refresh the OAuth access token',
+          operation: 'refresh_token',
+          tags: ['oauth', 'auth'],
+          examples: ['If any application wants to refresh token with OAuth credential then allow']
+        },
+        {
+          id: 'make_authenticated_request',
+          name: 'make authenticated request',
+          description: 'Make an authenticated request using the OAuth token',
+          operation: 'make_authenticated_request',
+          parameters: [
+            {
+              name: 'method',
+              description: 'HTTP method to use',
+              type: 'string',
+              required: true,
+              options: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']
+            },
+            {
+              name: 'url',
+              description: 'URL to call',
+              type: 'string',
+              required: true
+            }
+          ],
+          tags: ['oauth', 'api', 'http'],
+          examples: ['If any application wants to make authenticated request with OAuth credential then allow']
+        }
+      ];
+    
     default:
       return commonVerbs;
+  }
+};
+
+/**
+ * Extract verbs from credential plugin
+ * This automatically generates verbs based on the credential plugin's supported operations
+ */
+export const extractVerbsFromCredentialPlugin = async (credentialType: string): Promise<Omit<Verb, 'scope' | 'credentialType'>[]> => {
+  try {
+    const pluginManager = getPluginManager();
+    const credentialPlugin = pluginManager.getCredentialPlugin(credentialType);
+    
+    if (!credentialPlugin) {
+      logger.warn(`No credential plugin found for type: ${credentialType}`);
+      return [];
+    }
+    
+    const verbs: Omit<Verb, 'scope' | 'credentialType'>[] = [];
+    
+    // Check if the plugin has supportedOperations
+    if (credentialPlugin.supportedOperations && Array.isArray(credentialPlugin.supportedOperations)) {
+      credentialPlugin.supportedOperations.forEach((operation: any) => {
+        if (operation.name) {
+          // Convert operation name to a verb (e.g., MAKE_REQUEST -> make request)
+          const verbName = operation.name.toLowerCase().replace(/_/g, ' ');
+          
+          verbs.push({
+            id: operation.name.toLowerCase(),
+            name: verbName,
+            description: operation.description || `${verbName} using ${credentialType} credential`,
+            operation: operation.name,
+            parameters: operation.requiredParams?.map((param: string) => ({
+              name: param,
+              description: `${param} parameter`,
+              type: 'string',
+              required: true
+            })) || [],
+            tags: ['credential', credentialType.toLowerCase()],
+            examples: [`If any application wants to ${verbName} with ${credentialType} credential then allow`]
+          });
+        }
+      });
+    }
+    
+    return verbs;
+  } catch (error) {
+    logger.error(`Error extracting verbs from credential plugin ${credentialType}: ${error}`);
+    return [];
   }
 };
 
@@ -172,8 +302,14 @@ export const discoverVerbsForCredential = async (credentialId: string): Promise<
     // Get common verbs for this credential type
     const commonVerbs = getCommonVerbsForCredentialType(credentialType);
     
+    // Extract verbs from credential plugin
+    const extractedVerbs = await extractVerbsFromCredentialPlugin(credentialType);
+    
+    // Combine all verbs
+    const allVerbs = [...commonVerbs, ...extractedVerbs];
+    
     // Register the verbs for this credential type
-    const registeredVerbs = verbRegistryService.registerCredentialVerbs(credentialType, commonVerbs);
+    const registeredVerbs = verbRegistryService.registerCredentialVerbs(credentialType, allVerbs);
     
     logger.info(`Discovered and registered ${registeredVerbs.length} verbs for credential type ${credentialType}`);
     
@@ -202,8 +338,17 @@ export const initCredentialVerbDiscovery = async (): Promise<void> => {
     
     // Register verbs for each credential type
     for (const credentialType of credentialTypes) {
+      // Get common verbs for this credential type
       const commonVerbs = getCommonVerbsForCredentialType(credentialType);
-      verbRegistryService.registerCredentialVerbs(credentialType, commonVerbs);
+      
+      // Extract verbs from credential plugin
+      const extractedVerbs = await extractVerbsFromCredentialPlugin(credentialType);
+      
+      // Combine and register all verbs
+      const allVerbs = [...commonVerbs, ...extractedVerbs];
+      verbRegistryService.registerCredentialVerbs(credentialType, allVerbs);
+      
+      logger.info(`Registered ${allVerbs.length} verbs for credential type ${credentialType}`);
     }
     
     logger.info('Credential verb discovery initialization complete');
@@ -248,6 +393,7 @@ export const getVerbsForCredential = async (credentialId: string): Promise<Verb[
 
 export default {
   getCommonVerbsForCredentialType,
+  extractVerbsFromCredentialPlugin,
   discoverVerbsForCredential,
   initCredentialVerbDiscovery,
   getVerbsForCredential

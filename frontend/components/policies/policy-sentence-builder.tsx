@@ -10,15 +10,57 @@ import { Credential } from '@/lib/types/credential';
 import { Plugin } from '@/lib/types/plugin';
 import { PolicyData } from './natural-language-policy-dialog';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Clock, Hash, Gauge } from 'lucide-react';
 import { useVerbRegistry } from '@/hooks/use-verb-registry';
 import { VerbScope } from '@/lib/types/verb';
+import { Switch } from '@/components/ui/switch';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 // Define the Application interface
 interface Application {
   id: string;
   name: string;
   description?: string;
+}
+
+// Define the Entity interface for unified selection
+interface Entity {
+  id: string;
+  name: string;
+  type: 'application' | 'credential' | 'plugin' | 'any';
+  pluginId?: string;
+  description?: string;
+}
+
+// Define the CommonVerb interface
+interface CommonVerb {
+  id: string;
+  name: string;
+  description?: string;
+  disabled?: boolean;
+  applicableToEntityTypes?: Array<'application' | 'credential' | 'plugin' | 'any'>;
+}
+
+// Define condition types
+type ConditionType = 'none' | 'time' | 'count' | 'rate';
+
+interface TimeCondition {
+  startTime?: string;
+  endTime?: string;
+  daysOfWeek?: string[];
+}
+
+interface CountCondition {
+  maxCount: number;
+  timeWindow: number; // in minutes
+  timeUnit: 'minutes' | 'hours' | 'days';
+}
+
+interface RateCondition {
+  maxRequests: number;
+  perTimeWindow: number; // in seconds
+  timeUnit: 'seconds' | 'minutes' | 'hours';
 }
 
 export interface PolicySentenceBuilderProps {
@@ -38,13 +80,9 @@ export const PolicySentenceBuilder: React.FC<PolicySentenceBuilderProps> = ({
 }) => {
   const [policyName, setPolicyName] = useState<string>('');
   const [policyDescription, setPolicyDescription] = useState<string>('');
-  const [scope, setScope] = useState<'global' | 'credential' | 'plugin'>(preselectedScope);
-  const [credentialId, setCredentialId] = useState<string | undefined>(preselectedCredentialId);
-  const [pluginId, setPluginId] = useState<string | undefined>(undefined);
   const [action, setAction] = useState<'allow' | 'deny'>('allow');
   const [verb, setVerb] = useState<string>('');
   const [resource, setResource] = useState<string>('');
-  const [conditions, setConditions] = useState<string>('');
   const [showDescription, setShowDescription] = useState<boolean>(false);
   const prevPolicyDataRef = useRef<Partial<PolicyData> | null>(null);
   
@@ -58,524 +96,546 @@ export const PolicySentenceBuilder: React.FC<PolicySentenceBuilderProps> = ({
     fetchVerbsForPlugin
   } = useVerbRegistry();
   
-  // Add state for applications
-  const [applications, setApplications] = useState<Application[]>([
-    { id: 'any', name: 'Any application', description: 'Any application that requests access' },
-    { id: 'ai-bot-1', name: 'AI bot #1', description: 'First AI bot for testing policies' },
-    { id: 'ai-bot-2', name: 'AI bot #2', description: 'Second AI bot for testing policies' },
-    { id: 'ai-bot-3', name: 'AI bot #3', description: 'Third AI bot for testing policies' }
-  ]);
+  // State for entities (unified dropdown)
+  const [entities, setEntities] = useState<Entity[]>([]);
+  const [selectedEntityId, setSelectedEntityId] = useState<string>('any-application');
+
+  // State for conditions
+  const [conditionType, setConditionType] = useState<ConditionType>('none');
+  const [timeCondition, setTimeCondition] = useState<TimeCondition>({
+    startTime: '09:00',
+    endTime: '17:00',
+    daysOfWeek: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
+  });
+  const [countCondition, setCountCondition] = useState<CountCondition>({
+    maxCount: 100,
+    timeWindow: 60,
+    timeUnit: 'minutes'
+  });
+  const [rateCondition, setRateCondition] = useState<RateCondition>({
+    maxRequests: 10,
+    perTimeWindow: 1,
+    timeUnit: 'minutes'
+  });
   
-  // Add state for selected application
-  const [selectedApplication, setSelectedApplication] = useState<string>('any');
-
-  // Initialize with preselected values
+  // Initialize entities list
   useEffect(() => {
-    if (preselectedScope) {
-      setScope(preselectedScope);
-    }
+    const appEntities: Entity[] = [
+      { id: 'any-application', name: 'Any application', type: 'application', description: 'Any application that requests access' },
+      { id: 'app-ai-bot-1', name: 'AI bot #1', type: 'application', description: 'First AI bot for testing policies' },
+      { id: 'app-ai-bot-2', name: 'AI bot #2', type: 'application', description: 'Second AI bot for testing policies' },
+      { id: 'app-ai-bot-3', name: 'AI bot #3', type: 'application', description: 'Third AI bot for testing policies' }
+    ];
     
+    const credentialEntities: Entity[] = availableCredentials.map(cred => ({
+      id: `cred-${cred.id}`,
+      name: cred.name, 
+      type: 'credential',
+      description: `Credential: ${cred.name}`
+    }));
+    
+    const pluginEntities: Entity[] = availablePlugins.map(plugin => ({
+      id: `plugin-${plugin.id}`,
+      name: plugin.name,
+      type: 'plugin',
+      description: `Plugin: ${plugin.name}`
+    }));
+    
+    // Add "Any credential" and "Any plugin" options
+    const anyCredential: Entity = { id: 'any-credential', name: 'Any credential', type: 'credential', description: 'Any credential in the system' };
+    const anyPlugin: Entity = { id: 'any-plugin', name: 'Any plugin', type: 'plugin', description: 'Any plugin in the system' };
+    
+    const allEntities = [
+      ...appEntities,
+      anyCredential,
+      ...credentialEntities,
+      anyPlugin,
+      ...pluginEntities
+    ];
+    
+    setEntities(allEntities);
+    
+    // Set preselected entity if provided
     if (preselectedCredentialId) {
-      setCredentialId(preselectedCredentialId);
-    } else if (availableCredentials.length > 0 && !credentialId) {
-      setCredentialId(availableCredentials[0].id);
+      const entityId = `cred-${preselectedCredentialId}`;
+      setSelectedEntityId(entityId);
     }
-  }, [preselectedScope, preselectedCredentialId, availableCredentials, credentialId]);
+  }, [availableCredentials, availablePlugins, preselectedCredentialId]);
 
-  // Fetch verbs for the selected credential or plugin
+  // Handle entity selection change
   useEffect(() => {
-    const fetchVerbsForSelection = async () => {
-      if (scope === 'credential' && credentialId) {
-        try {
-          await fetchVerbsForCredential(credentialId);
-        } catch (error) {
-          console.error('Error fetching verbs for credential:', error);
-        }
-      } else if (scope === 'plugin' && pluginId) {
-        try {
-          await fetchVerbsForPlugin(pluginId);
-        } catch (error) {
-          console.error('Error fetching verbs for plugin:', error);
-        }
-      } else {
-        // For global scope, fetch global verbs
-        try {
-          await fetchVerbsByScope(VerbScope.GLOBAL);
-        } catch (error) {
-          console.error('Error fetching global verbs:', error);
-        }
-      }
-    };
-
-    fetchVerbsForSelection();
-  }, [scope, credentialId, pluginId, fetchVerbsByScope, fetchVerbsForCredential, fetchVerbsForPlugin]);
-
-  // Update the policy when any field changes
-  useEffect(() => {
-    const rules = [];
-    
-    if (verb && resource) {
-      rules.push({
-        action,
-        verb,
-        resource,
-        conditions: conditions || undefined,
-        applicationId: selectedApplication !== 'any' ? selectedApplication : undefined
-      });
-    }
-    
-    const policyData: Partial<PolicyData> = {
-      name: policyName,
-      description: policyDescription,
-      scope,
-      rules,
-      applicationId: selectedApplication !== 'any' ? selectedApplication : undefined
-    };
-    
-    if (scope === 'credential' && credentialId) {
-      policyData.credentialId = credentialId;
-    } else if (scope === 'plugin' && pluginId) {
-      policyData.pluginId = pluginId;
-    }
-    
-    // Use a ref to track previous values and prevent unnecessary updates
-    const policyDataString = JSON.stringify(policyData);
-    if (policyDataString !== JSON.stringify(prevPolicyDataRef.current)) {
-      prevPolicyDataRef.current = JSON.parse(policyDataString);
-      onPolicyUpdate(policyData);
-    }
-  }, [policyName, policyDescription, scope, credentialId, pluginId, action, verb, resource, conditions, selectedApplication, onPolicyUpdate]);
-
-  // Reset verb and resource when application changes
-  useEffect(() => {
-    // Reset verb and resource when application changes
+    // Reset verb when entity changes
     setVerb('');
-    setResource('');
-  }, [selectedApplication]);
-
-  // Common verbs based on scope and selected application
-  const getCommonVerbs = () => {
-    // Check if we have a Twitter credential selected
-    const isTwitterCredential = scope === 'credential' && 
-      credentialId && 
-      availableCredentials.find(c => c.id === credentialId)?.name?.toLowerCase().includes('twitter');
-
-    // Check if we have a specific AI bot selected
-    const isAiBot = selectedApplication !== 'any' && selectedApplication.startsWith('ai-bot');
-
-    // If we have verbs from the registry, use them
-    if (verbs && verbs.length > 0) {
-      // Filter verbs based on scope
-      let filteredVerbs = verbs;
-      
-      if (scope === 'credential' && credentialId) {
-        // Filter verbs for the selected credential
-        filteredVerbs = verbs.filter(v => 
-          v.scope === 'CREDENTIAL' && 
-          (!v.credentialType || v.credentialType === availableCredentials.find(c => c.id === credentialId)?.type)
-        );
-      } else if (scope === 'plugin' && pluginId) {
-        // Filter verbs for the selected plugin
-        filteredVerbs = verbs.filter(v => 
-          v.scope === 'PLUGIN' && 
-          (!v.pluginType || v.pluginType === availablePlugins.find(p => p.id === pluginId)?.type)
-        );
-      } else {
-        // Global scope
-        filteredVerbs = verbs.filter(v => v.scope === 'GLOBAL');
-      }
-      
-      // Return unique verb operations
-      return Array.from(new Set(filteredVerbs.map(v => v.operation)));
-    }
-
-    // Fallback to hardcoded verbs if registry is empty
-    if (isTwitterCredential || isAiBot) {
-      return ['read', 'post', 'view', 'like', 'retweet', 'follow', 'message', 'search', 'analyze'];
-    }
-
-    switch (scope) {
-      case 'global':
-        return ['access', 'read', 'write', 'execute', 'connect', 'query', 'analyze'];
-      case 'credential':
-        return ['use', 'read', 'write', 'delete', 'list', 'access', 'query'];
-      case 'plugin':
-        return ['run', 'execute', 'configure', 'access', 'modify', 'analyze'];
-      default:
-        return [];
+    
+    // Parse the entity ID to determine type and actual ID
+    const [type, id] = parseEntityId(selectedEntityId);
+    
+    // Fetch appropriate verbs for the selected entity
+    fetchVerbsForSelection(type, id);
+  }, [selectedEntityId]);
+  
+  // Function to parse entity ID format (type-id)
+  const parseEntityId = (entityId: string): [string, string] => {
+    const parts = entityId.split('-');
+    const type = parts[0];
+    const id = parts.slice(1).join('-');
+    
+    return [type, id];
+  };
+  
+  // Fetch verbs for the selected entity
+  const fetchVerbsForSelection = async (type: string, id: string) => {
+    if (type === 'any') {
+      await fetchVerbsByScope(VerbScope.GLOBAL);
+    } else if (type === 'cred') {
+      await fetchVerbsForCredential(id);
+    } else if (type === 'plugin') {
+      await fetchVerbsForPlugin(id);
+    } else if (type === 'app') {
+      await fetchVerbsByScope(VerbScope.GLOBAL);
     }
   };
-
-  // Common resources based on scope, selected application, and verb
-  const getCommonResources = () => {
-    // Check if we have a Twitter credential selected
-    const isTwitterCredential = scope === 'credential' && 
-      credentialId && 
-      availableCredentials.find(c => c.id === credentialId)?.name?.toLowerCase().includes('twitter');
-
-    // Check if we have a specific AI bot selected
-    const isAiBot = selectedApplication !== 'any' && selectedApplication.startsWith('ai-bot');
-
-    // If we have verbs from the registry, use their resources
-    if (verbs && verbs.length > 0) {
-      // Filter verbs based on scope
-      let filteredVerbs = verbs;
-      
-      if (scope === 'credential' && credentialId) {
-        // Filter verbs for the selected credential
-        filteredVerbs = verbs.filter(v => 
-          v.scope === 'CREDENTIAL' && 
-          (!v.credentialType || v.credentialType === availableCredentials.find(c => c.id === credentialId)?.type)
-        );
-      } else if (scope === 'plugin' && pluginId) {
-        // Filter verbs for the selected plugin
-        filteredVerbs = verbs.filter(v => 
-          v.scope === 'PLUGIN' && 
-          (!v.pluginType || v.pluginType === availablePlugins.find(p => p.id === pluginId)?.type)
-        );
-      } else {
-        // Global scope
-        filteredVerbs = verbs.filter(v => v.scope === 'GLOBAL');
-      }
-      
-      // Return unique resources
-      return Array.from(new Set(filteredVerbs.map(v => v.name).filter(Boolean)));
+  
+  // Update policy data on changes
+  useEffect(() => {
+    const currentPolicyData: Partial<PolicyData> = generatePolicyData();
+    
+    // Only update if the policy data has changed
+    if (JSON.stringify(currentPolicyData) !== JSON.stringify(prevPolicyDataRef.current)) {
+      prevPolicyDataRef.current = currentPolicyData;
+      onPolicyUpdate(currentPolicyData);
     }
-
-    // Fallback to hardcoded resources if registry is empty
-    if (isTwitterCredential || isAiBot) {
-      // Context-aware resources based on the selected verb
-      if (verb === 'read' || verb === 'view') {
-        return ['tweets', 'profile', 'timeline', 'followers', 'following', 'trends', 'hashtags'];
-      } else if (verb === 'post') {
-        return ['tweets', 'replies', 'direct messages'];
-      } else if (verb === 'like' || verb === 'retweet') {
-        return ['tweets', 'replies'];
-      } else if (verb === 'follow') {
-        return ['users', 'topics', 'hashtags'];
-      } else if (verb === 'message') {
-        return ['users', 'groups'];
-      } else if (verb === 'search' || verb === 'analyze') {
-        return ['tweets', 'users', 'trends', 'hashtags', 'mentions'];
-      }
-      
-      return ['tweets', 'profile', 'timeline', 'followers', 'following', 'direct messages', 'trends', 'hashtags', 'mentions'];
-    }
-
-    // Context-aware resources based on the selected verb
-    if (verb === 'read' || verb === 'access') {
-      switch (scope) {
-        case 'global':
-          return ['files', 'database', 'api', 'user data', 'system information'];
-        case 'credential':
-          return ['token', 'secret', 'key', 'account', 'profile'];
-        case 'plugin':
-          return ['data', 'configuration', 'logs', 'api'];
-        default:
-          return [];
-      }
-    } else if (verb === 'write' || verb === 'modify') {
-      switch (scope) {
-        case 'global':
-          return ['files', 'database', 'configuration', 'user data'];
-        case 'credential':
-          return ['token', 'secret', 'key', 'settings'];
-        case 'plugin':
-          return ['data', 'configuration', 'settings'];
-        default:
-          return [];
-      }
-    } else if (verb === 'execute' || verb === 'run') {
-      switch (scope) {
-        case 'global':
-          return ['commands', 'scripts', 'functions', 'services'];
-        case 'credential':
-          return ['operations', 'functions', 'methods'];
-        case 'plugin':
-          return ['functions', 'methods', 'operations', 'services'];
-        default:
-          return [];
-      }
-    }
-
-    switch (scope) {
-      case 'global':
-        return ['system', 'network', 'file', 'database', 'api', 'user data', 'analytics'];
-      case 'credential':
-        return ['secret', 'key', 'token', 'password', 'certificate', 'account', 'profile'];
-      case 'plugin':
-        return ['function', 'data', 'api', 'service', 'resource', 'configuration', 'logs'];
-      default:
-        return [];
-    }
-  };
-
-  // Get the application name based on scope
-  const getApplicationName = () => {
-    // If a specific application is selected, return its name
-    if (selectedApplication !== 'any') {
-      const app = applications.find(a => a.id === selectedApplication);
-      if (app) return app.name;
+  }, [policyName, policyDescription, selectedEntityId, verb, resource, action, conditionType, timeCondition, countCondition, rateCondition]);
+  
+  const generatePolicyData = (): Partial<PolicyData> => {
+    const [entityType, entityId] = parseEntityId(selectedEntityId);
+    
+    let scope: 'global' | 'credential' | 'plugin' = 'global';
+    let credentialId: string | undefined = undefined;
+    let pluginId: string | undefined = undefined;
+    
+    if (entityType === 'cred') {
+      scope = 'credential';
+      credentialId = entityId;
+    } else if (entityType === 'plugin') {
+      scope = 'plugin';
+      pluginId = entityId;
     }
     
-    // Otherwise, use the credential or plugin name
-    if (scope === 'credential' && credentialId) {
-      const credential = availableCredentials.find(c => c.id === credentialId);
-      
-      // Special handling for Twitter credentials
-      if (credential?.name?.toLowerCase().includes('twitter')) {
-        return 'AI bot #1';  // Display AI bot #1 for Twitter credentials
-      }
-      
-      return credential?.name || 'Selected Credential';
-    } else if (scope === 'plugin' && pluginId) {
-      const plugin = availablePlugins.find(p => p.id === pluginId);
-      return plugin?.name || 'Selected Plugin';
+    // Build rules based on selections
+    const rules: any[] = [];
+    
+    // Add basic allow/deny rule
+    const baseRule = {
+      action: action,
+      verb: verb,
+      resource: resource || undefined
+    };
+    
+    // Add conditions based on condition type
+    if (conditionType === 'time') {
+      rules.push({
+        ...baseRule,
+        timeRestriction: {
+          startTime: timeCondition.startTime,
+          endTime: timeCondition.endTime,
+          daysOfWeek: timeCondition.daysOfWeek
+        }
+      });
+    } else if (conditionType === 'count') {
+      rules.push({
+        ...baseRule,
+        countLimit: {
+          maxCount: countCondition.maxCount,
+          timeWindow: countCondition.timeWindow,
+          timeUnit: countCondition.timeUnit
+        }
+      });
+    } else if (conditionType === 'rate') {
+      rules.push({
+        ...baseRule,
+        rateLimit: {
+          maxRequests: rateCondition.maxRequests,
+          perTimeWindow: rateCondition.perTimeWindow,
+          timeUnit: rateCondition.timeUnit
+        }
+      });
+    } else {
+      // No conditions
+      rules.push(baseRule);
     }
-    return 'Any application';
+    
+    return {
+      name: policyName || generatePolicyName(),
+      description: policyDescription || generatePolicyDescription(),
+      scope,
+      credentialId,
+      pluginId,
+      rules
+    };
   };
 
-  // Generate a policy name if not set
-  useEffect(() => {
-    if (!policyName && verb && resource) {
-      const appName = getApplicationName();
-      const actionWord = action === 'allow' ? 'Allow' : 'Block';
-      setPolicyName(`${actionWord} ${appName} to ${verb} ${resource}`);
+  // Helper function to get entity name from ID
+  const getEntityName = (): string => {
+    const entity = entities.find(e => e.id === selectedEntityId);
+    return entity ? entity.name : 'Unknown';
+  };
+  
+  // Helper function to get entity type from ID
+  const getEntityType = (): string => {
+    const [type] = parseEntityId(selectedEntityId);
+    if (type === 'any' || type === 'app') return 'application';
+    if (type === 'cred') return 'credential';
+    if (type === 'plugin') return 'plugin';
+    return 'entity';
+  };
+
+  // Get verbs that are applicable to the current entity type
+  const getApplicableVerbs = (): CommonVerb[] => {
+    if (verbsLoading || !verbs.length) {
+      return [{ id: 'loading', name: 'Loading actions...', disabled: true }];
     }
-  }, [action, verb, resource, scope, credentialId, pluginId]);
+    
+    const [type] = parseEntityId(selectedEntityId);
+    const entityType = type === 'any' || type === 'app' ? 'application' : 
+                       type === 'cred' ? 'credential' : 
+                       type === 'plugin' ? 'plugin' : 'any';
+    
+    // Use verbs from the registry, filter by entity type if needed
+    return verbs.map(v => ({
+      id: v.id,
+      name: v.name,
+      description: v.description,
+      disabled: false
+    }));
+  };
+
+  // Generate a policy name based on selections
+  const generatePolicyName = (): string => {
+    const entityName = getEntityName();
+    const verbName = verb ? verbs.find(v => v.id === verb)?.name || verb : 'perform actions';
+    return `${action === 'allow' ? 'Allow' : 'Block'} ${entityName} to ${verbName}`;
+  };
+
+  // Generate a policy description based on selections
+  const generatePolicyDescription = (): string => {
+    const entityName = getEntityName();
+    const entityType = getEntityType();
+    const verbName = verb ? verbs.find(v => v.id === verb)?.name || verb : 'perform actions';
+    
+    let description = `This policy ${action === 'allow' ? 'allows' : 'blocks'} ${entityName} to ${verbName}`;
+    
+    // Add condition information
+    if (conditionType === 'time') {
+      description += ` between ${timeCondition.startTime} and ${timeCondition.endTime}`;
+    } else if (conditionType === 'count') {
+      description += ` up to ${countCondition.maxCount} times per ${countCondition.timeWindow} ${countCondition.timeUnit}`;
+    } else if (conditionType === 'rate') {
+      description += ` at a rate of ${rateCondition.maxRequests} requests per ${rateCondition.perTimeWindow} ${rateCondition.timeUnit}`;
+    }
+    
+    return description;
+  };
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardContent className="pt-6">
-          <div className="space-y-4">
-            <div>
-              <div className="flex justify-between items-center mb-1.5">
-                <Label htmlFor="policy-name" className="flex items-center">
-                  Policy Name <span className="text-red-500 ml-1">*</span>
-                </Label>
-                {!policyName && (
-                  <span className="text-xs text-muted-foreground flex items-center">
-                    <AlertCircle className="h-3 w-3 mr-1" /> Required
-                  </span>
-                )}
-              </div>
-              <Input
-                id="policy-name"
-                placeholder="Enter a name for this policy"
-                value={policyName}
-                onChange={(e) => setPolicyName(e.target.value)}
-                className={!policyName ? "border-red-200 focus-visible:ring-red-200" : ""}
-              />
-            </div>
-            
-            {showDescription ? (
-              <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <Label htmlFor="policy-description">Description (Optional)</Label>
-                  <button 
-                    className="text-xs text-muted-foreground hover:text-primary"
-                    onClick={() => {
-                      setPolicyDescription('');
-                      setShowDescription(false);
-                    }}
-                  >
-                    Hide
-                  </button>
-                </div>
-                <Textarea
-                  id="policy-description"
-                  placeholder="Describe what this policy does"
-                  value={policyDescription}
-                  onChange={(e) => setPolicyDescription(e.target.value)}
-                  className="h-20"
-                />
-              </div>
-            ) : (
-              <button 
-                className="text-sm text-muted-foreground hover:text-primary flex items-center"
-                onClick={() => setShowDescription(true)}
-              >
-                + Add Description (Optional)
-              </button>
-            )}
+      {/* Policy name/description area - kept minimal */}
+      <div>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="policy-name">Policy Name</Label>
+          <Badge 
+            variant="outline" 
+            className="cursor-pointer"
+            onClick={() => setShowDescription(!showDescription)}
+          >
+            {showDescription ? 'Hide Description' : 'Add Description'}
+          </Badge>
+        </div>
+        <Input
+          id="policy-name"
+          placeholder="Enter policy name or leave blank for auto-generated name"
+          value={policyName}
+          onChange={(e) => setPolicyName(e.target.value)}
+        />
+        
+        {showDescription && (
+          <div className="mt-2">
+            <Label htmlFor="policy-description">Description</Label>
+            <Textarea
+              id="policy-description"
+              placeholder="Enter policy description or leave blank for auto-generated description"
+              value={policyDescription}
+              onChange={(e) => setPolicyDescription(e.target.value)}
+              className="mt-1"
+            />
           </div>
-        </CardContent>
-      </Card>
-
+        )}
+      </div>
+      
+      {/* Simplified natural language policy builder */}
       <Card>
-        <CardContent className="pt-6 pb-6">
-          <div className="space-y-6">
-            <div className="bg-muted p-6 rounded-md border text-center">
-              <p className="text-xl font-medium">
-                If <span className="text-primary font-bold text-xl">{getApplicationName()}</span> wants to do{' '}
-                <span className="text-primary font-bold text-xl">{verb || '[action]'}</span>{' '}
-                <span className="text-primary font-bold text-xl">{resource || '[resource]'}</span> then{' '}
-                <span className={`font-bold text-xl ${action === 'allow' ? 'text-green-500' : 'text-red-500'}`}>
-                  {action === 'allow' ? 'ALLOW' : 'BLOCK'}
-                </span>
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="application-select">Application</Label>
-                <Select 
-                  value={selectedApplication} 
-                  onValueChange={setSelectedApplication}
-                >
-                  <SelectTrigger id="application-select">
-                    <SelectValue placeholder="Select application" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {applications.map((app) => (
-                      <SelectItem key={app.id} value={app.id}>
-                        {app.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="action-select">Decision</Label>
-                <Select value={action} onValueChange={(value: 'allow' | 'deny') => setAction(value)}>
-                  <SelectTrigger 
-                    id="action-select" 
-                    className={action === 'allow' ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'}
-                  >
-                    <SelectValue placeholder="Select decision" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="allow">ALLOW</SelectItem>
-                    <SelectItem value="deny">BLOCK</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="policy-scope">Scope</Label>
-              <Select 
-                value={scope} 
-                onValueChange={(value: 'global' | 'credential' | 'plugin') => setScope(value)}
-                disabled={!!preselectedScope}
+        <CardContent className="pt-4">
+          <div className="space-y-3">
+            {/* Entity Selection - unified dropdown */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium">If</span>
+              <Select
+                value={selectedEntityId}
+                onValueChange={setSelectedEntityId}
               >
-                <SelectTrigger id="policy-scope">
-                  <SelectValue placeholder="Select policy scope" />
+                <SelectTrigger className="w-[250px]">
+                  <SelectValue placeholder="Select application or credential" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="global">Global</SelectItem>
-                  <SelectItem value="credential">Credential-specific</SelectItem>
-                  <SelectItem value="plugin">Plugin-specific</SelectItem>
+                  <SelectItem value="any-application">Any application</SelectItem>
+                  {entities
+                    .filter(entity => entity.id !== 'any-application')
+                    .map((entity) => (
+                      <SelectItem key={entity.id} value={entity.id}>
+                        {entity.name} ({entity.type})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              
+              <span className="text-sm font-medium">wants to</span>
+              
+              {/* Dynamic Verb Selection based on entity */}
+              <Select
+                value={verb}
+                onValueChange={setVerb}
+              >
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Select action" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getApplicableVerbs().map((v) => (
+                    <SelectItem 
+                      key={v.id} 
+                      value={v.id}
+                      disabled={v.disabled}
+                    >
+                      {v.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <span className="text-sm font-medium">then</span>
+              
+              {/* Action Selection */}
+              <Select
+                value={action}
+                onValueChange={(value: 'allow' | 'deny') => setAction(value)}
+              >
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue placeholder="Select action" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="allow">allow</SelectItem>
+                  <SelectItem value="deny">block</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-
-            {scope === 'credential' && (
-              <div>
-                <Label htmlFor="credential-select">Specific Credential</Label>
-                <Select 
-                  value={credentialId} 
-                  onValueChange={setCredentialId}
-                  disabled={!!preselectedCredentialId}
-                >
-                  <SelectTrigger id="credential-select">
-                    <SelectValue placeholder="Select credential" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableCredentials.map((cred) => (
-                      <SelectItem key={cred.id} value={cred.id}>
-                        {cred.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {scope === 'plugin' && (
-              <div>
-                <Label htmlFor="plugin-select">Specific Plugin</Label>
-                <Select 
-                  value={pluginId} 
-                  onValueChange={setPluginId}
-                >
-                  <SelectTrigger id="plugin-select">
-                    <SelectValue placeholder="Select plugin" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availablePlugins.map((plugin) => (
-                      <SelectItem key={plugin.id} value={plugin.id}>
-                        {plugin.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            <div>
-              <Label htmlFor="verb-input">Action</Label>
-              <div className="flex gap-2">
-                <Select onValueChange={setVerb} value={verb}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Select an action (e.g., read, write)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getCommonVerbs().map((v) => (
-                      <SelectItem key={v} value={v}>
-                        {v}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  id="verb-input"
-                  placeholder="Or type custom action"
-                  value={verb}
-                  onChange={(e) => setVerb(e.target.value)}
-                  className="w-[180px]"
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="resource-input">Resource</Label>
-              <div className="flex gap-2">
-                <Select onValueChange={setResource} value={resource}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Select a resource (e.g., tweets, files)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getCommonResources().map((r) => (
-                      <SelectItem key={r} value={r}>
-                        {r}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  id="resource-input"
-                  placeholder="Or type custom resource"
-                  value={resource}
-                  onChange={(e) => setResource(e.target.value)}
-                  className="w-[180px]"
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between items-center mb-1.5">
-                <Label htmlFor="conditions-input">Conditions (Optional)</Label>
-              </div>
-              <Input
-                id="conditions-input"
-                placeholder="e.g., from internal network, during business hours"
-                value={conditions}
-                onChange={(e) => setConditions(e.target.value)}
-              />
-            </div>
+            
+            {/* Structured Conditions */}
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="conditions">
+                <AccordionTrigger className="text-sm font-medium py-2">
+                  Additional Conditions
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-4 p-2">
+                    <RadioGroup 
+                      value={conditionType} 
+                      onValueChange={(value) => setConditionType(value as ConditionType)}
+                      className="flex flex-col space-y-2"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="none" id="condition-none" />
+                        <Label htmlFor="condition-none">No conditions</Label>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="time" id="condition-time" />
+                        <Label htmlFor="condition-time" className="flex items-center gap-1">
+                          <Clock className="h-4 w-4" /> Time-based restriction
+                        </Label>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="count" id="condition-count" />
+                        <Label htmlFor="condition-count" className="flex items-center gap-1">
+                          <Hash className="h-4 w-4" /> Usage count limit
+                        </Label>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="rate" id="condition-rate" />
+                        <Label htmlFor="condition-rate" className="flex items-center gap-1">
+                          <Gauge className="h-4 w-4" /> Rate limit
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                    
+                    {/* Conditional inputs based on selection */}
+                    {conditionType === 'time' && (
+                      <div className="space-y-3 border rounded-md p-3 bg-muted/30">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="time-start">Start Time</Label>
+                            <Input
+                              id="time-start"
+                              type="time"
+                              value={timeCondition.startTime}
+                              onChange={(e) => setTimeCondition({...timeCondition, startTime: e.target.value})}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="time-end">End Time</Label>
+                            <Input
+                              id="time-end"
+                              type="time"
+                              value={timeCondition.endTime}
+                              onChange={(e) => setTimeCondition({...timeCondition, endTime: e.target.value})}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="block mb-2">Days of Week</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
+                              <Badge 
+                                key={day}
+                                variant={timeCondition.daysOfWeek?.includes(day) ? 'default' : 'outline'}
+                                className="cursor-pointer"
+                                onClick={() => {
+                                  const days = timeCondition.daysOfWeek || [];
+                                  if (days.includes(day)) {
+                                    setTimeCondition({
+                                      ...timeCondition, 
+                                      daysOfWeek: days.filter(d => d !== day)
+                                    });
+                                  } else {
+                                    setTimeCondition({
+                                      ...timeCondition,
+                                      daysOfWeek: [...days, day]
+                                    });
+                                  }
+                                }}
+                              >
+                                {day.charAt(0).toUpperCase() + day.slice(1, 3)}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {conditionType === 'count' && (
+                      <div className="space-y-3 border rounded-md p-3 bg-muted/30">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="count-max">Maximum Count</Label>
+                            <Input
+                              id="count-max"
+                              type="number"
+                              min="1"
+                              value={countCondition.maxCount}
+                              onChange={(e) => setCountCondition({...countCondition, maxCount: parseInt(e.target.value)})}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="count-window">Time Window</Label>
+                            <div className="flex gap-2">
+                              <Input
+                                id="count-window"
+                                type="number"
+                                min="1"
+                                value={countCondition.timeWindow}
+                                onChange={(e) => setCountCondition({...countCondition, timeWindow: parseInt(e.target.value)})}
+                                className="flex-1"
+                              />
+                              <Select
+                                value={countCondition.timeUnit}
+                                onValueChange={(value: 'minutes' | 'hours' | 'days') => setCountCondition({...countCondition, timeUnit: value})}
+                              >
+                                <SelectTrigger className="w-[100px]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="minutes">Minutes</SelectItem>
+                                  <SelectItem value="hours">Hours</SelectItem>
+                                  <SelectItem value="days">Days</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {conditionType === 'rate' && (
+                      <div className="space-y-3 border rounded-md p-3 bg-muted/30">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="rate-max">Maximum Requests</Label>
+                            <Input
+                              id="rate-max"
+                              type="number"
+                              min="1"
+                              value={rateCondition.maxRequests}
+                              onChange={(e) => setRateCondition({...rateCondition, maxRequests: parseInt(e.target.value)})}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="rate-window">Per Time Window</Label>
+                            <div className="flex gap-2">
+                              <Input
+                                id="rate-window"
+                                type="number"
+                                min="1"
+                                value={rateCondition.perTimeWindow}
+                                onChange={(e) => setRateCondition({...rateCondition, perTimeWindow: parseInt(e.target.value)})}
+                                className="flex-1"
+                              />
+                              <Select
+                                value={rateCondition.timeUnit}
+                                onValueChange={(value: 'seconds' | 'minutes' | 'hours') => setRateCondition({...rateCondition, timeUnit: value})}
+                              >
+                                <SelectTrigger className="w-[100px]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="seconds">Seconds</SelectItem>
+                                  <SelectItem value="minutes">Minutes</SelectItem>
+                                  <SelectItem value="hours">Hours</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Preview of the policy */}
+      <Card className="bg-muted/50">
+        <CardContent className="pt-4">
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium">Policy Preview</h3>
+            <p className="text-sm">
+              <span className="font-semibold">{policyName || generatePolicyName()}</span>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {policyDescription || generatePolicyDescription()}
+            </p>
           </div>
         </CardContent>
       </Card>

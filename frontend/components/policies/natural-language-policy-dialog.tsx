@@ -54,165 +54,138 @@ export const NaturalLanguagePolicyDialog: React.FC<NaturalLanguagePolicyDialogPr
     name: '',
     description: '',
     scope: initialScope,
-    credentialId: initialCredentialId || (availableCredentials.length > 0 ? availableCredentials[0].id : undefined),
-    rules: [],
+    credentialId: initialCredentialId,
+    rules: []
   });
-
-  // Reset policy data when dialog opens
+  
+  // Reset form when dialog is opened
   useEffect(() => {
     if (open) {
       setPolicyData({
         name: '',
         description: '',
         scope: initialScope,
-        credentialId: initialCredentialId || (availableCredentials.length > 0 ? availableCredentials[0].id : undefined),
-        rules: [],
+        credentialId: initialCredentialId,
+        rules: []
       });
       setActiveTab(PolicyTab.NATURAL);
     }
-  }, [open, initialScope, initialCredentialId, availableCredentials]);
-
+  }, [open, initialScope, initialCredentialId]);
+  
   const handleSentenceUpdate = (updatedPolicy: Partial<PolicyData>) => {
     setPolicyData(prev => ({
       ...prev,
-      ...updatedPolicy,
-      // Preserve the credential ID if it was already set
-      credentialId: updatedPolicy.credentialId || prev.credentialId,
+      ...updatedPolicy
     }));
   };
-
+  
   const handleTemplateSelect = (template: PolicyData) => {
-    setPolicyData(prev => ({
+    setPolicyData({
       ...template,
-      // Preserve the credential ID if it was already set and the scope is credential
-      credentialId: (template.scope === 'credential' || prev.scope === 'credential') 
-        ? (template.credentialId || prev.credentialId) 
-        : undefined,
-    }));
-    setActiveTab(PolicyTab.NATURAL);
-  };
-
-  const handleComplete = () => {
-    // Ensure we have a credential ID if the scope is credential
-    const finalPolicyData = { ...policyData };
+      // Keep the initial scope and credential if they were provided
+      scope: initialScope || template.scope,
+      credentialId: initialCredentialId || template.credentialId
+    });
     
-    if (finalPolicyData.scope === 'credential' && !finalPolicyData.credentialId && availableCredentials.length > 0) {
-      finalPolicyData.credentialId = availableCredentials[0].id;
+    // Switch to visualization tab to show the policy structure
+    setActiveTab(PolicyTab.VISUALIZATION);
+  };
+  
+  const handleComplete = () => {
+    // Ensure we have required fields
+    if (!policyData.name) {
+      alert('Please provide a policy name');
+      return;
     }
     
-    onComplete(finalPolicyData);
+    onComplete(policyData);
     onOpenChange(false);
   };
-
+  
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Policy</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-xl font-semibold">Create Policy</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground">
             Define what applications can do with a simple natural language policy
           </DialogDescription>
         </DialogHeader>
-
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as PolicyTab)} className="mt-4">
-          <TabsList className="grid grid-cols-4">
-            <TabsTrigger value={PolicyTab.NATURAL} className="flex items-center gap-1">
+        
+        <Tabs defaultValue={PolicyTab.NATURAL} value={activeTab} onValueChange={(value) => setActiveTab(value as PolicyTab)} className="mt-2">
+          <TabsList className="grid grid-cols-4 mb-4">
+            <TabsTrigger 
+              value={PolicyTab.NATURAL} 
+              className="flex items-center gap-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-medium"
+            >
               <MessageSquare className="h-4 w-4" />
-              <span className="hidden sm:inline">Natural</span>
-              <span className="sm:hidden">Natural</span>
+              <span>Natural</span>
             </TabsTrigger>
-            <TabsTrigger value={PolicyTab.TEMPLATES} className="flex items-center gap-1">
+            <TabsTrigger 
+              value={PolicyTab.TEMPLATES} 
+              className="flex items-center gap-1 text-muted-foreground data-[state=active]:text-foreground"
+            >
               <FileText className="h-4 w-4" />
-              <span className="hidden sm:inline">Templates</span>
-              <span className="sm:hidden">Templates</span>
+              <span>Templates</span>
             </TabsTrigger>
-            <TabsTrigger value={PolicyTab.VISUALIZATION} className="flex items-center gap-1">
+            <TabsTrigger 
+              value={PolicyTab.VISUALIZATION} 
+              className="flex items-center gap-1 text-muted-foreground data-[state=active]:text-foreground"
+            >
               <Eye className="h-4 w-4" />
-              <span className="hidden sm:inline">Visual</span>
-              <span className="sm:hidden">Visual</span>
+              <span>Visual</span>
             </TabsTrigger>
-            <TabsTrigger value={PolicyTab.ADVANCED} className="flex items-center gap-1">
+            <TabsTrigger 
+              value={PolicyTab.ADVANCED} 
+              className="flex items-center gap-1 text-muted-foreground data-[state=active]:text-foreground"
+            >
               <Code2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Advanced</span>
-              <span className="sm:hidden">Advanced</span>
+              <span>Advanced</span>
             </TabsTrigger>
           </TabsList>
-
-          <TabsContent value={PolicyTab.NATURAL} className="py-4">
-            <div className="mb-4 p-4 bg-muted rounded-md border">
+          
+          <TabsContent value={PolicyTab.NATURAL} className="space-y-4 mt-0">
+            <div className="rounded-md border p-4 bg-card">
               <h3 className="text-sm font-medium mb-2">Natural Language Policy Builder</h3>
-              <p className="text-sm text-muted-foreground">
-                Create policies using simple sentences in the format: 
-                "If <strong>[application]</strong> wants to do <strong>[action]</strong> then <strong>[allow/block]</strong>"
+              <p className="text-sm text-muted-foreground mb-4">
+                Create policies using simple sentences in the format: "If [application] wants to do [action] then [allow/block]"
               </p>
+              <PolicySentenceBuilder
+                availableCredentials={availableCredentials}
+                availablePlugins={availablePlugins}
+                preselectedCredentialId={initialCredentialId}
+                preselectedScope={initialScope}
+                onPolicyUpdate={handleSentenceUpdate}
+              />
             </div>
-            <PolicySentenceBuilder 
-              availableCredentials={availableCredentials}
-              availablePlugins={availablePlugins}
-              preselectedCredentialId={initialCredentialId}
-              preselectedScope={initialScope}
-              onPolicyUpdate={handleSentenceUpdate}
-            />
           </TabsContent>
-
-          <TabsContent value={PolicyTab.TEMPLATES} className="py-4">
-            <div className="mb-4 p-4 bg-muted rounded-md border">
-              <h3 className="text-sm font-medium mb-2">Policy Templates</h3>
-              <p className="text-sm text-muted-foreground">
-                Choose from pre-built policy templates for common scenarios
-              </p>
-            </div>
-            <PolicyTemplateSelector 
-              availableCredentials={availableCredentials}
-              availablePlugins={availablePlugins}
-              preselectedCredentialId={initialCredentialId}
-              preselectedScope={initialScope}
-              onTemplateSelect={handleTemplateSelect}
-            />
+          
+          <TabsContent value={PolicyTab.TEMPLATES} className="space-y-4 mt-0">
+            <PolicyTemplateSelector onTemplateSelect={handleTemplateSelect} />
           </TabsContent>
-
-          <TabsContent value={PolicyTab.VISUALIZATION} className="py-4">
-            <div className="mb-4 p-4 bg-muted rounded-md border">
-              <h3 className="text-sm font-medium mb-2">Policy Visualization</h3>
-              <p className="text-sm text-muted-foreground">
-                See a visual representation of how your policy will work
-              </p>
-            </div>
-            <PolicyVisualization 
-              policyData={policyData}
-              onPolicyUpdate={handleSentenceUpdate}
-            />
+          
+          <TabsContent value={PolicyTab.VISUALIZATION} className="space-y-4 mt-0">
+            <PolicyVisualization policyData={policyData} />
           </TabsContent>
-
-          <TabsContent value={PolicyTab.ADVANCED} className="py-4">
-            <div className="mb-4 p-4 bg-muted rounded-md border">
+          
+          <TabsContent value={PolicyTab.ADVANCED} className="space-y-4 mt-0">
+            <div className="rounded-md border p-4">
               <h3 className="text-sm font-medium mb-2">Advanced Policy Editor</h3>
-              <p className="text-sm text-muted-foreground">
-                For technical users who need more control over policy configuration
+              <p className="text-sm text-muted-foreground mb-4">
+                For advanced users to create complex policy structures
               </p>
-            </div>
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">Advanced policy editor coming soon</p>
-              <p className="text-sm text-muted-foreground mt-2">Please use the natural language builder for now</p>
-              <Button 
-                variant="outline" 
-                className="mt-4"
-                onClick={() => setActiveTab(PolicyTab.NATURAL)}
-              >
-                Back to Natural Language
-              </Button>
+              <pre className="bg-muted p-4 rounded-md overflow-auto text-xs">
+                {JSON.stringify(policyData, null, 2)}
+              </pre>
             </div>
           </TabsContent>
         </Tabs>
-
-        <DialogFooter>
+        
+        <DialogFooter className="mt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleComplete} 
-            disabled={!policyData.name || policyData.rules.length === 0}
-          >
+          <Button onClick={handleComplete} disabled={!policyData.name}>
             Create Policy
           </Button>
         </DialogFooter>

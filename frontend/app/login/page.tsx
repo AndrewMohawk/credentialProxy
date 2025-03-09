@@ -2,7 +2,7 @@
 
 import type React from 'react';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Shield, Fingerprint, KeyRound, ArrowRight, User, AlertCircle, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -62,6 +62,19 @@ export default function LoginPage() {
   const { toast } = useToast();
   const { login, register, isAuthenticated } = useAuth();
 
+  // Add refs for input fields
+  const usernameInputRef = useRef<HTMLInputElement>(null);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
+  
+  // Focus the appropriate input field when step changes
+  useEffect(() => {
+    if (step === 'username' && usernameInputRef.current) {
+      usernameInputRef.current.focus();
+    } else if (step === 'password' && passwordInputRef.current) {
+      passwordInputRef.current.focus();
+    }
+  }, [step]);
+
   // Update password entropy when password changes
   useEffect(() => {
     const entropy = calculatePasswordEntropy(password);
@@ -69,11 +82,20 @@ export default function LoginPage() {
     setPasswordStrength(getPasswordStrengthInfo(entropy));
   }, [password]);
 
-  // If user is already authenticated, redirect to dashboard
-  if (isAuthenticated) {
-    router.push('/');
-    return null;
-  }
+  // Add a useEffect to redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/');
+    }
+  }, [isAuthenticated, router]);
+  
+  // Prevent form reset when there's an error
+  useEffect(() => {
+    if (errorMessage && step === 'password') {
+      // Ensure password field stays focused when there's an error
+      passwordInputRef.current?.focus();
+    }
+  }, [errorMessage, step]);
 
   const handleUsernameSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,25 +128,15 @@ export default function LoginPage() {
         router.push('/');
       } else {
         setIsLoading(false);
-        // Error handling is done in the useAuth hook via toast notifications
-        
-        // To ensure error messages also appear in the UI, we need to wait a moment
-        // for any potential error messages to be updated
-        setTimeout(() => {
-          if (!errorMessage) {
-            setErrorMessage('Login failed. Please check your credentials and try again.');
-          }
-        }, 100);
+        setErrorMessage('Login failed. Please check your credentials and try again.');
       }
     } catch (error: any) {
       setIsLoading(false);
+      // Set error message from the caught error
+      setErrorMessage(error.message || 'Login failed. Please check your credentials and try again.');
       
-      // Display the error message in the UI
-      if (error.message) {
-        setErrorMessage(error.message);
-      } else {
-        setErrorMessage('Login failed. Please check your credentials and try again.');
-      }
+      // Ensure we stay on the password step
+      setStep('password');
     }
   };
 
@@ -269,6 +281,7 @@ export default function LoginPage() {
                       className="pl-10"
                       autoComplete="username"
                       required
+                      ref={usernameInputRef}
                     />
                   </div>
                 </div>
@@ -299,6 +312,13 @@ export default function LoginPage() {
                       className="pl-10"
                       autoComplete="current-password"
                       required
+                      ref={passwordInputRef}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handlePasswordSubmit(e);
+                        }
+                      }}
                     />
                   </div>
                 </div>

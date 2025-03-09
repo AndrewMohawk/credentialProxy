@@ -47,6 +47,41 @@ const getCommonPluginVerbs = (pluginType: string): Omit<Verb, 'scope' | 'pluginT
 };
 
 /**
+ * Extract verbs from plugin operations
+ * This automatically generates verbs based on the plugin's supported operations
+ */
+const extractVerbsFromPlugin = (plugin: any): Omit<Verb, 'scope' | 'pluginType'>[] => {
+  const verbs: Omit<Verb, 'scope' | 'pluginType'>[] = [];
+  
+  // Check if the plugin has supportedOperations
+  if (plugin.supportedOperations && Array.isArray(plugin.supportedOperations)) {
+    plugin.supportedOperations.forEach((operation: any) => {
+      if (operation.name) {
+        // Convert operation name to a verb (e.g., GET_DATA -> get data)
+        const verbName = operation.name.toLowerCase().replace(/_/g, ' ');
+        
+        verbs.push({
+          id: operation.name.toLowerCase(),
+          name: verbName,
+          description: operation.description || `${verbName} using ${plugin.getType()} plugin`,
+          operation: operation.name,
+          parameters: operation.requiredParams?.map((param: string) => ({
+            name: param,
+            description: `${param} parameter`,
+            type: 'string',
+            required: true
+          })) || [],
+          tags: ['plugin', plugin.getType().toLowerCase()],
+          examples: [`If any application wants to ${verbName} with ${plugin.getType()} plugin then allow`]
+        });
+      }
+    });
+  }
+  
+  return verbs;
+};
+
+/**
  * Initialize verb discovery for all plugins
  * @returns Promise that resolves when initialization is complete
  */
@@ -58,12 +93,18 @@ export const initPluginVerbDiscovery = async (): Promise<void> => {
     logger.info(`Initializing verb discovery for ${plugins.length} plugins`);
     
     for (const plugin of plugins) {
-      // Register common verbs for this plugin type
-      const commonVerbs = getCommonPluginVerbs(plugin.getType());
-      verbRegistryService.registerPluginVerbs(plugin.getType(), commonVerbs);
+      const pluginType = plugin.getType();
       
-      // Custom verb registration is handled separately since not all plugins 
-      // have the registerVerbs method
+      // Register common verbs for this plugin type
+      const commonVerbs = getCommonPluginVerbs(pluginType);
+      verbRegistryService.registerPluginVerbs(pluginType, commonVerbs);
+      
+      // Extract and register verbs from plugin operations
+      const extractedVerbs = extractVerbsFromPlugin(plugin);
+      if (extractedVerbs.length > 0) {
+        verbRegistryService.registerPluginVerbs(pluginType, extractedVerbs);
+        logger.info(`Registered ${extractedVerbs.length} extracted verbs for plugin type ${pluginType}`);
+      }
     }
     
     logger.info('Plugin verb discovery initialization complete');
@@ -101,10 +142,16 @@ export const discoverVerbsForPlugin = async (pluginId: string): Promise<Verb[]> 
     const commonVerbs = getCommonPluginVerbs(plugin.type);
     const registeredCommonVerbs = verbRegistryService.registerPluginVerbs(plugin.type, commonVerbs);
     
-    // Custom verb registration would go here if supported
-    // For now, we're just registering the common verbs
+    // Extract and register verbs from plugin operations
+    const extractedVerbs = extractVerbsFromPlugin(pluginInstance);
+    let registeredExtractedVerbs: Verb[] = [];
     
-    return registeredCommonVerbs;
+    if (extractedVerbs.length > 0) {
+      registeredExtractedVerbs = verbRegistryService.registerPluginVerbs(plugin.type, extractedVerbs);
+      logger.info(`Registered ${extractedVerbs.length} extracted verbs for plugin ${plugin.id}`);
+    }
+    
+    return [...registeredCommonVerbs, ...registeredExtractedVerbs];
   } catch (error) {
     logger.error(`Error discovering verbs for plugin ${pluginId}: ${error}`);
     return [];
@@ -147,6 +194,7 @@ export const getVerbsForPlugin = async (pluginId: string): Promise<Verb[]> => {
 
 export default {
   getCommonPluginVerbs,
+  extractVerbsFromPlugin,
   initPluginVerbDiscovery,
   discoverVerbsForPlugin,
   getVerbsForPlugin

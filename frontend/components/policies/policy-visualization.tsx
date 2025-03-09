@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { PolicyData } from './natural-language-policy-dialog';
 
 export interface PolicyVisualizationProps {
-  policyData: PolicyData;
+  policyData: Partial<PolicyData>;
   onPolicyUpdate?: (updatedPolicy: Partial<PolicyData>) => void;
 }
 
